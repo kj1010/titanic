@@ -1,2 +1,2 @@
 # titanic
-Titanic project for kaggle competition
+kaggle competition: https://www.kaggle.com/c/titanic
