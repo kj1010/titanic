@@ -1,0 +1,59 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r libs}
+
+library(tidyverse)
+
+library(Matrix)
+library(glmnet)
+
+```
+
+```{r data}
+train_final <- readRDS('../data/train_final.rds')
+```
+
+```{r train_prep}
+
+train_x_prep <- train_final %>%
+  # We remove the unique passenger ID from the X matrix, along with the Survived
+  # label (will be used for y), and also the following variables because on
+  # their own they are not good features for model training (we have already
+  # generated other feats from them): Name, Ticket, Cabin.
+  select(-PassengerId, -Survived, -Name, -Ticket, -Cabin)
+
+# Now with only X vars needed for model, convert to model matrix (so that
+# categoricals get dummified).
+train_x <- model.matrix(~.-1, train_x_prep)
+
+train_y <- train_final %>% 
+  select(Survived) %>% 
+  pull()
+
+```
+
+```{r model_validation}
+
+cvglmnet_results <- cv.glmnet(train_x,
+                              train_y,
+                              # Logistic model
+                              family = "binomial",
+                              # 5-fold cross-validation
+                              nfolds = 5,
+                              # Use alpha = 1 for lasso.
+                              alpha = 1,
+                              # Use "class" in maximizing accuracy (this is the
+                              # official metric for the kaggle competition).
+                              type.measure = "class")
+
+```
+
+```{r save_cvglmnet_results}
+
+saveRDS(cvglmnet_results, '../data/cvglmnet_results.rds')
+
+```
+

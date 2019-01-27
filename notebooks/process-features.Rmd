@@ -6,12 +6,121 @@ output: html_notebook
 ```{r libs}
 
 library(tidyverse)
+library(stringr)
 
 ```
 
 ```{r data}
 
+# Data dictionary here: https://www.kaggle.com/c/titanic/data
 
+train <- read.csv('../data/train.csv')
+test <- read.csv('../data/test.csv')
+# From kaggle, the last csv here is "a set of predictions that assume all and
+# only female passengers survive, as an example of what a submission file should
+# look like."
+gender_submission <- read.csv('../data/gender_submission.csv')
 
 ```
+
+```{r rbind_train_and_test_for_feat_building}
+
+# First, I temporarily bind train and test dfs to consolidate code for feature
+# engineering.
+
+train_split <- train %>% 
+  mutate(split = 'TRAIN')
+
+test_split <- test %>%
+  mutate(split = 'TEST')
+
+full_df <- bind_rows(train_split, test_split)
+
+```
+
+
+```{r build_feats}
+
+# Feature engineering
+
+full_feats <- full_df %>% 
+  mutate(married_female = str_detect(Name, 'Mrs'),
+         no_age_info = if_else(is.na(Age), TRUE, FALSE, FALSE),
+         # SibSp = # of siblings / spouses aboard the Titanic
+         # Parch = # of parents / children aboard the Titanic
+         total_family_size = SibSp + Parch,
+         # Note: For cabin size, if Cabin = blank, we will assume zero cabins.
+         # When Cabin != blank, each additional cabin was found to have a space
+         # between the prior cabin.
+         total_cabins = if_else(Cabin == '', 0, 1 + str_count(Cabin, ' ')),
+         # If Cabin != blank, extract the letter(s) of all cabins, otherwise if
+         # result is NA (b/c Cabin = blank), then replace NA with 'Z'.
+         cabin_letters_prep = replace_na(str_extract_all(Cabin, '[:alpha:]'), 'Z')) %>%
+  unnest(cabin_letters_prep) %>% 
+  # We will have a few duplicates because some passengers had multiple cabin on
+  # their records. If they have multiple of the same letter (e.g. multiple "C"
+  # cabins), then de-dup.
+  unique() %>% 
+  # A few passenters had multiple cabin letters that we different (e.g. "B" and
+  # "C" cabins). We want to capture this nuance, but  also must collapse into
+  # one cell per passenger.
+  group_by(PassengerId) %>% 
+  mutate(cabin_letters = paste(cabin_letters_prep, collapse = '')) %>% 
+  ungroup() %>% 
+  select(-cabin_letters_prep) %>% 
+  unique()
+
+```
+
+```{r identify_cols_for_imputation}
+
+# For the lasso model, we will need to use imputation for any NA values (other
+# records will be dropped in conversion to dummified model matrix).
+
+# Therefore, we will need to identify all columsn that contain NA values.
+colnames(full_feats)[colSums(is.na(full_feats)) > 0]
+
+```
+
+```{r imputation}
+
+# Note: We will ignore "Survived" because this column is NA only for test
+# records (kaggle does not provide the ground truth values for the test set).
+
+age_median <- median(full_feats$Age, na.rm = TRUE)
+fare_median <- median(full_feats$Fare, na.rm = TRUE)
+
+# For Age and Fare, we will impute missing values.
+full_feats_impute <- full_feats %>%
+  mutate(Age = if_else(is.na(Age), age_median, Age),
+         fare_median = if_else(is.na(Fare), fare_median, Fare))
+
+```
+
+
+```{r resplit_train_test}
+
+train_final <- full_feats_impute %>% 
+  filter(split == 'TRAIN') %>% 
+  # For Surivived variable, we cannot use 1 and 0, since models will assume Y
+  # values are continuous rather than binary.
+  mutate(Survived = if_else(Survived == 1, 'yes', 'no')) %>% 
+  select(-split)
+
+test_final <- full_feats_impute %>% 
+  filter(split == 'TEST') %>%
+  # Note: The test set actually has no Survived info available, so we will
+  # remove that variable too.
+  select(-split, -Survived)
+
+```
+
+
+```{r save_data}
+
+saveRDS(train_final, '../data/train_final.rds')
+saveRDS(test_final, '../data/test_final.rds')
+
+```
+
 

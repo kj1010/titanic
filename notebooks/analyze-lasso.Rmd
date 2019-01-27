@@ -1,0 +1,88 @@
+---
+title: "Analyze: LASSO Model"
+output: html_notebook
+---
+
+```{r libs}
+
+library(tidyverse)
+library(broom)
+
+library(Matrix)
+library(glmnet)
+
+```
+
+```{r data}
+
+train_final <- readRDS('../data/train_final.rds')
+cvglmnet_results <- readRDS('../data/cvglmnet_results.rds')
+
+```
+
+```{r plot_cvglmnet_results}
+
+plot(cvglmnet_results)
+
+```
+
+
+```{r train_prep}
+
+train_x_prep <- train_final %>%
+  # We remove the unique passenger ID from the X matrix, along with the Survived
+  # label (will be used for y), and also the following variables because on
+  # their own they are not good features for model training (we have already
+  # generated other feats from them): Name, Ticket, Cabin.
+  select(-PassengerId, -Survived, -Name, -Ticket, -Cabin)
+
+# Now with only X vars needed for model, convert to model matrix (so that
+# categoricals get dummified).
+train_x <- model.matrix(~.-1, train_x_prep)
+
+train_y <- train_final %>% 
+  select(Survived) %>% 
+  pull()
+
+```
+
+```{r best_fit}
+
+best_lambda <- cvglmnet_results$lambda.min
+
+best_fit <- glmnet(train_x,
+                   train_y,
+                   # Logistic model
+                   family = "binomial",
+                   # Use alpha = 1 for lasso.
+                   alpha = 1,
+                   lambda = best_lambda)
+
+```
+
+```{r predictions}
+
+train_final$preds <- predict(cvglmnet_results, s = "lambda.min", newx = train_x, type = 'response')
+```
+
+```{r pred_labels}
+
+train_final <- train_final %>% 
+  mutate(pred_label = if_else(preds >= .5, 'yes', 'no'))
+
+```
+
+```{r compare_final}
+
+compare_final <- train_final %>% 
+  mutate(match = if_else(Survived == pred_label, TRUE, FALSE, FALSE))
+
+# Overall accuracy
+paste0(round((sum(compare_final$match)/nrow(compare_final))*100, 0), '%')
+
+```
+
+
+
+
+
