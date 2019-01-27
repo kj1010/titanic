@@ -1,0 +1,17 @@
+---
+title: "Process: Titanic Data Features"
+output: html_notebook
+---
+
+```{r libs}
+
+library(tidyverse)
+
+```
+
+```{r data}
+
+
+
+```
+
