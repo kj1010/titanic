@@ -44,11 +44,19 @@ full_df <- bind_rows(train_split, test_split)
 # Feature engineering
 
 full_feats <- full_df %>% 
-  mutate(married_female = str_detect(Name, 'Mrs'),
+  mutate(married_female = case_when(
+                              Sex == 'female' & str_detect(Name, 'Mrs') ~ 'Yes',
+                              Sex == 'female' & !str_detect(Name, 'Mrs') ~ 'No',
+                              Sex == "male" ~ 'NotApplicable'),
+         adult = case_when(
+                              Age >= 18 ~ 'Yes',
+                              Age < 18 ~ 'No',
+                              is.na(Age) ~ 'UNKNOWN'),
          no_age_info = if_else(is.na(Age), TRUE, FALSE, FALSE),
+         # Use 1 + to count for the individual
          # SibSp = # of siblings / spouses aboard the Titanic
          # Parch = # of parents / children aboard the Titanic
-         total_family_size = SibSp + Parch,
+         total_family_size = 1 + SibSp + Parch,
          # Note: For cabin size, if Cabin = blank, we will assume zero cabins.
          # When Cabin != blank, each additional cabin was found to have a space
          # between the prior cabin.
@@ -93,7 +101,7 @@ fare_median <- median(full_feats$Fare, na.rm = TRUE)
 # For Age and Fare, we will impute missing values.
 full_feats_impute <- full_feats %>%
   mutate(Age = if_else(is.na(Age), age_median, Age),
-         fare_median = if_else(is.na(Fare), fare_median, Fare))
+         Fare = if_else(is.na(Fare), fare_median, Fare))
 
 ```
 

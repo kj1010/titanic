@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Build: LASSO Model"
 output: html_notebook
 ---
 
@@ -23,7 +23,11 @@ train_x_prep <- train_final %>%
   # label (will be used for y), and also the following variables because on
   # their own they are not good features for model training (we have already
   # generated other feats from them): Name, Ticket, Cabin.
-  select(-PassengerId, -Survived, -Name, -Ticket, -Cabin)
+  select(-PassengerId, -Survived, -Name, -Ticket, -Cabin) %>% 
+  # Interaction variables added here
+  mutate(pclass_x_famsize = Pclass*total_family_size,
+         age_x_fare = Age*Fare)
+  
 
 # Now with only X vars needed for model, convert to model matrix (so that
 # categoricals get dummified).
@@ -35,14 +39,51 @@ train_y <- train_final %>%
 
 ```
 
-```{r model_validation}
+```{r remove_feats_less_than_one_perc}
 
+# Remove logical/binary feats with less > 99% uniformity in responses.
+
+train_x_dummy_df <- as_tibble(train_x)
+
+train_x_feat_summ <- train_x_dummy_df %>% 
+  # Remove these vars consideration since they are numeric vars or are
+  # categorical vars with > 2 responses.
+  select(-Age, -Fare, -Parch, -SibSp, -total_family_size, -total_cabins, -pclass_x_famsize, -age_x_fare, -married_femaleYes, -married_femaleNotApplicable, -adultYes, -adultUNKNOWN) %>% 
+  gather(feat, val) %>% 
+  group_by(feat) %>% 
+  mutate(feat_n = n()) %>% 
+  ungroup() %>% 
+  group_by(feat, val) %>% 
+  mutate(feat_val_n = n()) %>% 
+  ungroup() %>% 
+  unique() %>% 
+  mutate(coverage = feat_val_n/feat_n)
+
+uniform_feat <- train_x_feat_summ %>% 
+  #Identify those with > 99% uniformity
+  filter(coverage > .99) %>% 
+  select(feat) %>% 
+  unique() %>% 
+  pull()
+
+train_x_mod <- train_x_dummy_df %>% 
+  select(-one_of(uniform_feat))
+
+# Convert back to matrix.
+train_x <- model.matrix(~.-1, train_x_mod)
+
+```
+
+
+```{r model_tuning}
+
+set.seed(1)
 cvglmnet_results <- cv.glmnet(train_x,
                               train_y,
                               # Logistic model
                               family = "binomial",
                               # 5-fold cross-validation
-                              nfolds = 5,
+                              nfolds = 10,
                               # Use alpha = 1 for lasso.
                               alpha = 1,
                               # Use "class" in maximizing accuracy (this is the
