@@ -25,7 +25,7 @@ train_x_prep <- train_final %>%
   # generated other feats from them): Name, Ticket, Cabin.
   select(-PassengerId, -Survived, -Name, -Ticket, -Cabin) %>% 
   # Interaction variables added here
-  mutate(pclass_x_famsize = Pclass*total_family_size,
+  mutate(pclass_x_numfam = Pclass*num_family_members,
          age_x_fare = Age*Fare)
   
 
@@ -48,7 +48,7 @@ train_x_dummy_df <- as_tibble(train_x)
 train_x_feat_summ <- train_x_dummy_df %>% 
   # Remove these vars consideration since they are numeric vars or are
   # categorical vars with > 2 responses.
-  select(-Age, -Fare, -Parch, -SibSp, -total_family_size, -total_cabins, -pclass_x_famsize, -age_x_fare, -married_femaleYes, -married_femaleNotApplicable, -adultYes, -adultUNKNOWN) %>% 
+  select(-Age, -Fare, -Parch, -SibSp, -num_family_members, -total_cabins, -pclass_x_numfam, -age_x_fare, -married_femaleYes, -married_femaleNotApplicable, -adultYes, -adultUNKNOWN) %>% 
   gather(feat, val) %>% 
   group_by(feat) %>% 
   mutate(feat_n = n()) %>% 

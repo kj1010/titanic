@@ -56,7 +56,8 @@ full_feats <- full_df %>%
          # Use 1 + to count for the individual
          # SibSp = # of siblings / spouses aboard the Titanic
          # Parch = # of parents / children aboard the Titanic
-         total_family_size = 1 + SibSp + Parch,
+         num_family_members = SibSp + Parch,
+         part_of_family = if_else(SibSp + Parch > 0, TRUE, FALSE, FALSE),
          # Note: For cabin size, if Cabin = blank, we will assume zero cabins.
          # When Cabin != blank, each additional cabin was found to have a space
          # between the prior cabin.
