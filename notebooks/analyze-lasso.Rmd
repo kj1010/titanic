@@ -3,6 +3,10 @@ title: "Analyze: LASSO Model"
 output: html_notebook
 ---
 
+
+
+<!-- NOTE: THIS ALL NEEDS TO BE REWORKED TO DEAL WITH THE FACT THAT A) IT WAS NOT ORIGINALLY SET UP CORRECTLY TO EVALUATE TEST AND B) THE FACT THAT THE TEST DATA DOES NOT ACTUALLY HAVE ANY LABELS.-->
+
 ```{r libs}
 
 library(tidyverse)
@@ -15,7 +19,7 @@ library(glmnet)
 
 ```{r data}
 
-train_final <- readRDS('../data/train_final.rds')
+test_final <- readRDS('../data/test_final.rds')
 cvglmnet_results <- readRDS('../data/cvglmnet_results.rds')
 
 ```
@@ -29,21 +33,21 @@ plot(cvglmnet_results)
 
 ```{r train_prep}
 
-train_x_prep <- train_final %>%
+test_x_prep <- test_final %>%
   # We remove the unique passenger ID from the X matrix, along with the Survived
   # label (will be used for y), and also the following variables because on
   # their own they are not good features for model training (we have already
   # generated other feats from them): Name, Ticket, Cabin.
-  select(-PassengerId, -Survived, -Name, -Ticket, -Cabin) %>% 
+  select(-PassengerId, -Name, -Ticket, -Cabin) %>% 
   # Interaction variables added here
   mutate(pclass_x_numfam = Pclass*num_family_members,
          age_x_fare = Age*Fare)
 
 # Now with only X vars needed for model, convert to model matrix (so that
 # categoricals get dummified).
-train_x <- model.matrix(~.-1, train_x_prep)
+test_x <- model.matrix(~.-1, test_x_prep)
 
-train_y <- train_final %>% 
+test_y <- test_final %>% 
   select(Survived) %>% 
   pull()
 

@@ -1,0 +1,33 @@
+---
+title: "Analyze: Random Forest Model"
+output: html_notebook
+---
+
+<!-- NOTE: THIS ALL NEEDS TO BE REWORKED TO DEAL WITH THE FACT THAT A) IT WAS NOT ORIGINALLY SET UP CORRECTLY TO EVALUATE TEST AND B) THE FACT THAT THE TEST DATA DOES NOT ACTUALLY HAVE ANY LABELS.-->
+
+```{r libs}
+
+library(tidyverse)
+
+library(Metrics)
+library(Matrix)
+library(ranger)
+library(rsample)
+
+```
+
+
+```{r data}
+
+train_final <- readRDS('../data/train_final.rds')
+rf_model <- readRDS('../data/rf_model.rds')
+
+```
+
+
+```{r}
+
+test_actual <- test_final$Survived == "yes"
+
+```
+

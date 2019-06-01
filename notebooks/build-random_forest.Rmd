@@ -1,0 +1,182 @@
+---
+title: "Build: Random Forest Model"
+output: html_notebook
+---
+
+```{r libs}
+
+library(tidyverse)
+
+library(Metrics)
+library(Matrix)
+library(ranger)
+library(rsample)
+
+```
+
+
+```{r data}
+train_final <- readRDS('../data/train_final.rds')
+```
+
+
+<!-- SKIP THIS PORTION - LEADS TO SIGNIFICANT PERFORMANCE DROP -->
+
+```{r train_prep, eval=FALSE}
+
+train_prep <- train_final %>%
+  # We remove Survived (the Y variable) temporarily, and the following variables
+  # because on their own they are not good features for model training (we have
+  # already generated other feats from them): Name, Ticket, Cabin.
+  select(-Survived, -Name, -Ticket, -Cabin) %>% 
+  # Interaction variables added here
+  mutate(pclass_x_numfam = Pclass*num_family_members,
+         age_x_fare = Age*Fare)
+  
+
+# Now with only X vars needed for model, convert to model matrix (so that
+# categoricals get dummified).
+# The -1 is to get rid of the Y-intercept.
+train_mat <- model.matrix(~.-1, train_prep)
+
+```
+
+```{r remove_feats_less_than_one_perc, eval=FALSE}
+
+# Remove logical/binary feats with less > 99% uniformity in responses.
+
+train_dummy_df <- as_tibble(train_mat)
+
+train_feat_summ <- train_dummy_df %>% 
+  # Remove these vars consideration since they are numeric vars or are
+  # categorical vars with > 2 responses.
+  select(-Age, -Fare, -Parch, -SibSp, -num_family_members, -total_cabins, -pclass_x_numfam, -age_x_fare, -married_femaleYes, -married_femaleNotApplicable, -adultYes, -adultUNKNOWN) %>% 
+  gather(feat, val) %>% 
+  group_by(feat) %>% 
+  mutate(feat_n = n()) %>% 
+  ungroup() %>% 
+  group_by(feat, val) %>% 
+  mutate(feat_val_n = n()) %>% 
+  ungroup() %>% 
+  unique() %>% 
+  mutate(coverage = feat_val_n/feat_n)
+
+uniform_feat <- train_feat_summ %>% 
+  #Identify those with > 99% uniformity
+  filter(coverage > .99) %>% 
+  select(feat) %>% 
+  unique() %>% 
+  pull()
+
+train_select <- train_dummy_df %>% 
+  select(-one_of(uniform_feat)) %>% 
+  mutate(PassengerId = as.integer(PassengerId))
+
+train_y <- train_final %>% 
+  select(PassengerId, Survived)
+
+train_mod <- train_y %>% 
+  left_join(train_select, by = 'PassengerId')
+
+```
+
+
+
+
+
+
+
+
+```{r}
+
+train_mod <- train_final
+
+```
+
+
+```{r}
+
+train_split <- initial_split(train_mod, prop = .80)
+
+training_data <- training(train_split)
+testing_data <- testing(train_split)
+
+```
+
+
+```{r}
+
+cv_split <- vfold_cv(training_data, v = 5)
+
+#glimpse(cv_split)
+```
+
+```{r}
+
+cv_data <- cv_split %>% 
+  mutate(train = map(splits, ~training(.x)),
+         validate = map(splits, ~testing(.x)))
+
+#glimpse(cv_data)
+```
+
+
+```{r}
+
+cv_tune <- cv_data %>% 
+  crossing(mtry = c(2, 4, 8, 10, 12, 16))
+
+```
+
+
+```{r}
+
+cv_models_rf <- cv_tune %>% 
+  mutate(model = map2(train, mtry, ~ranger(formula = Survived~.,
+                                           data = .x, mtry = .y,
+                                           num.trees = 100, seed = 8)))
+
+```
+
+```{r}
+
+cv_prep_rf <- cv_models_rf %>% 
+  mutate(validate_actual = map(validate, ~.x$Survived == "yes"),
+         validate_predicted = map2(.x = model, .y = validate,
+                                   ~predict(.x, .y, type = "response")$predictions == "yes"))
+
+```
+
+```{r}
+
+cv_perf_recall <- cv_prep_rf %>% 
+  mutate(recall = map2_dbl(.x = validate_actual, .y = validate_predicted,
+                           ~recall(actual = .x, predicted = .y)))
+
+cv_perf_recall %>% 
+  group_by(mtry) %>% 
+  summarise(mean_recall = mean(recall))
+
+```
+
+
+```{r}
+
+# Final model build
+
+rf_model <- ranger(formula = Survived~.,
+                   data = train_final,
+                   mtry = 8,
+                   num.trees = 100,
+                   seed = 8)
+
+```
+
+
+```{r save_rf_results}
+
+saveRDS(rf_model, '../data/rf_model.rds')
+
+```
+
+
