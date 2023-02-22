@@ -1,0 +1,602 @@
+---
+title: "Build: Models"
+output: html_document
+date: '2023-02-20'
+---
+
+```{r libs}
+
+# tidyverse packages
+library(tidyverse)
+# sampling package that's part of tidyverse
+library(rsample)
+
+# fundamental components for building/evaluating models
+library(Metrics)
+library(Matrix)
+
+# model packages
+library(glmnet)
+library(ranger)
+library(xgboost)
+
+# miscellaneous
+library(tictoc)
+
+```
+
+# Objective
+
+This notebook is for tuning 3 different types of machine learning models: Lasso, Random Forest, and XGBoost. After doing cross-validation for all 3 types of models, we will select the best hyperparameters, and use them to build a final model for each.
+
+This Titanic project on Kaggle challenges the participants to build the best-performing possible model at determining which passengers on board the Titanic lived, and which died (a binary problem).
+
+Accorrding to the Kaggle competition rules for the Titanice dataset, the performance metric they require you report on is **Accuracy**. Note: There are many weaknesses in a metric like **Accuracy** for a ML binary problem like this (e.g. Accuracy is famously bad to use with a dataset with a massive class imbalance -- i.e. many negatives, and just a few positives)..
+
+With that said, let's first take a look at the **baseline rates of death vs. survial** amongst passengers on the Titanic. This may help us understand whether Accuracy might be OK to use, and *more importantly, may help us understand where best to set the probability cutoff for the models*.
+
+
+```{r data}
+train_all <- readRDS('../data/train_final.rds')
+
+train_all_mod <- train_all %>% 
+  # Removing PassengerId because it's the unique identifier key. Also removing
+  # Name, Ticket, and Cabin because they are too unique, so when you create
+  # dummified model matrices you will end up with unequal column counts between
+  # your TRAIN and VALIDATE.
+  select(-PassengerId, -Name, -Ticket, -Cabin) %>% 
+  # We need the row number to extract the correct records for each corresponding
+  # cross-validation set later on.
+  mutate(Survived = if_else(Survived == 'yes', 1, 0, 0), 
+         row_num = 1:n())
+```
+
+
+Here are the **baseline rates of death vs. survival** within the TRAIN set. This tells us that actually **most of the passengers onboard the Titanic died (> 60%).**
+
+```{r}
+train_all %>% 
+  count(Survived) %>% 
+  mutate(Percent = scales::percent(n/nrow(train_all), accuracy = 0.1))
+```
+
+
+
+# Glance at Training Data
+
+First, we will take a quick glance at the 
+
+Note About Different Model Packages
+
+While `ranger` has a convenient `formula` param for tuning models, both `glmnet` and `xgboost`. Because of this, and the fact that the model packages generally have many less issues when you use a model matrix for training (and a single vector for outcomes), I decided to set up all 3 models (`ranger`, `glmnet` and `xgboost`) in the same way --- using `x` = feature model matrix, and `y` = single outcomes vector.
+
+```{r}
+
+# Create model matrix of all TRAIN.
+train_all_x <- train_all_mod %>% 
+  model.matrix(Survived~.-1, data = .)
+
+# Vector for all TRAIN outcomes.
+train_all_y <- train_all_mod$Survived
+
+```
+
+
+```{r}
+
+# Note: rsample::initial_split() partitions the original full TRAIN set into a
+# random split - 80% for Cross-Validation "Training", 20% for Cross-Validating
+# "Testing" (or more accurately, "Validating"). Note: This is a hard split
+# across the full original TRAIN set - the CV Train and CV Validate will later
+# be further randomly sampled in Cross-Validation below.
+train_split <- initial_split(train_all_mod, prop = .80)
+
+
+```
+
+```{r}
+
+# rample::training() and rsample::testing() are used to extract the resulting
+# data.
+
+# NOTE: Only traing_data is actually used below. The testing_data df is just here for
+# illustrative purposes of how the rsample functions work on a single df.
+
+# Note: nrow(training_data) == 712 (or 80% of the original TRAIN, with N = 891)
+training_data <- training(train_split)
+
+# Note: nrow(testing_data) == 179 (or 20% of the original TRAIN, with N = 179)
+validating_data <- testing(train_split)
+
+```
+
+
+```{r}
+
+# rsample::vfold_cv() then sets up cross-validation (with 5 folds below), by
+# further taking 80% of both the CV Train and CV Validate. The 80% taken from
+# each here are randomly-sampled so you have random samples across the splits.
+cv_split <- vfold_cv(training_data, v = 5)
+
+#glimpse(cv_split)
+```
+
+
+
+```{r}
+
+# As mentioned above, we can use rsample::training() and rsample::testing() are
+# to extract the relevant data for both CV Training and CV Validation.
+
+# Important note re: rsample: It tends to have its own object types that are
+# unique to the package. While it is very helpful overall, this makes it a
+# little inconvenient if you want to manipulate the rsample output. It is really
+# designed to identify "splits" (a unique type of rsample object), and then
+# extract dfs accordingly. We want to add an additional step where we identify
+# the row number for each split, so that we can then use this to subset the
+# model matrices and vectors (this is a much easier approach for model tuning
+# with purrr).
+
+cv_data <- cv_split %>% 
+  # We see in the individual folds, that each is 80% of the original
+  # initial_split(). So in the "train" column, N = 569 is 80% of the 712
+  # CV Training total, and in the "validate" column, N = 143 is 80% of the 179
+  # CV Validation set.
+  mutate(training_x = map(splits, ~training(.x)),
+         # Isolate the "Survived" outcome. It should be in the 1st column.
+         training_y = map(splits, ~training(.x)[, 1]),
+         # Isolate the row number column - it will be in the last column (i.e.
+         # ncol(training_data)).
+         training_x_rows_df = map(splits, ~training(.x)[, ncol(training_data)]),
+         # Pull the values so we convert row number values from embedded dfs, to
+         # instead a list of values ( we will use this for subsetting when model
+         # tuning below).
+         training_x_rows = map(training_x_rows_df, ~pull(.x)),
+         # Now we do the same stuff above that we did with CV Training, with the
+         # CV Validation set.
+         validating_x = map(splits, ~testing(.x)),
+         validating_x_rows_df = map(splits, ~testing(.x)[, ncol(validating_data)]),
+         validating_x_rows = map(validating_x_rows_df, ~pull(.x)))
+
+# NOTE: This step might not be actually necessary, but we will add a name to
+# each train_x_rows and validating_x_rows observations (it can be a little
+# helpful later on when navigating the resulting splits).
+names(cv_data$training_x_rows) <- cv_data$id
+names(cv_data$validating_x_rows) <- cv_data$id
+
+#glimpse(cv_data)
+```
+
+
+```{r}
+# Build a vector of potential probability cutoff. We will use this to test
+# various probability cutoffs for each of the models below.
+prob_cutoff <- seq(from = 1/20, to = 1, length.out = 20)
+```
+
+
+
+# LASSO 
+
+For the LASSO model, we use the `glmnet` package.
+
+```{r}
+
+# For glmnet, we need to get a vector of "lambda" hyperparameter values. To
+# this, we will build a basic LASSO model for the express purpose of just
+# extracting all lambda values associated it. We will then use those lambda
+# values to tune across the splits below.
+basic_lasso_model <- glmnet(train_all_x,
+                            train_all_y,
+                            # alpha = 1 specifies Lasso (as opposed to Ridge or Elastic Net)
+                            alpha = 1,
+                            family = "binomial")
+
+# Extract all the lambda values.
+cv_lambdas <- basic_lasso_model$lambda
+
+```
+
+
+```{r}
+
+# Create a vector of the RF hyperparameter "mtry" - we will append these to the
+# splits, so we can tune various splits with these different mtry values.
+cv_tune_lasso <- cv_data %>% 
+  crossing(lambda = cv_lambdas)
+
+```
+
+
+```{r}
+
+# Build several different models with Cross-Validation splits using the CV
+# Training sets.
+
+# ~5sec run-time.
+cv_models_lasso <- cv_tune_lasso %>% 
+  mutate(model = map2(training_x_rows, 
+                      lambda,
+                      ~glmnet(x = train_all_x[.x, ],
+                              y = train_all_y[.x],
+                              alpha = 1,
+                              family = "binomial")))
+```
+
+
+```{r}
+
+# Now return the actual results ("Survived" column) along with the predictions
+# from each of the models on the CV Validation sets.
+
+cv_prep_lasso <- cv_models_lasso %>% 
+  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
+         # Note: validating_x_rows lets us know the row numbers to subset for
+         # each split. Another note: We need to specify 1) the model for each
+         # split 2) the lambda for each split (other you get chaotic randomness
+         # back) and 3) the validating_x_rows. Because this involves 3
+         # arguments, we need to use pmap() -- with pmap(), you don't specify
+         # vectors with .x or .y, but instead use ..1, ..2, ..3, etc. See:
+         # https://dcl-prog.stanford.edu/purrr-parallel.html
+         validate_prob = pmap(list(model, 
+                                   lambda,
+                                   validating_x_rows),
+                              ~glmnet::predict.glmnet(object = ..1, 
+                                                      # s = the lambda hyperparam.
+                                                      s = ..2,
+                                              # Note: Make sure to use train_x
+                                              # here because it actually contains
+                                              # all the observations, and this
+                                              # will make sure when they are
+                                              # subsetted by validating_x_rows,
+                                              # they are all actually present.
+                                              newx = train_all_x[..3, ], 
+                                              type = "response"))) %>% 
+  # We need plogis() here to convert what I think are logit outputs to instead
+  # probability outputs.
+  mutate(prob_mat = map(validate_prob, ~stats::plogis(.x)[, 1])) %>% 
+  # Note: I found I had to use tidyr::expand_grid() here instead of
+  # tidyr::crossing() because of a known issue with glmnet models and
+  # tidyr::crossing(). See: https://github.com/tidyverse/tidyr/issues/735.
+  expand_grid(prob_cutoff = prob_cutoff) %>% 
+  mutate(validate_predicted = map2(.x = prob_mat,
+                                   .y = prob_cutoff,
+                                   ~.x >= .y))
+
+```
+
+
+```{r}
+cv_accuracy_lasso <- cv_prep_lasso %>% 
+  # map2_dbl() the validation actuals vs. the validation model predictions to
+  # calculate the accuracy per model. 
+  mutate(accuracy = map2_dbl(.x = validate_actual, .y = validate_predicted,
+                           ~accuracy(actual = .x, predicted = .y)))
+
+# Calculate the mean accuracy level for each mtry hyperparam value. The mtry
+# with the highest accuracy is the one we will select for building/saving the final
+# random forest model.
+lasso_accuracy_summ <- cv_accuracy_lasso %>% 
+  group_by(lambda, prob_cutoff) %>% 
+  summarise(mean_accuracy = mean(accuracy)) %>% 
+  ungroup() %>% 
+  arrange(desc(mean_accuracy))
+
+lasso_top_lambda <- lasso_accuracy_summ %>% 
+  slice_max(order_by = mean_accuracy, n = 1, with_ties = FALSE) %>% 
+  pull(lambda)
+
+lasso_top_cutoff <- lasso_accuracy_summ %>% 
+  slice_max(order_by = mean_accuracy, n = 1, with_ties = FALSE) %>% 
+  pull(prob_cutoff)
+  
+lasso_accuracy_summ
+```
+
+```{r}
+
+# Build final Lasso model with the best-performing lambda hyperparam value.
+
+lasso_model <- glmnet(train_all_x,
+                      train_all_y,
+                      # Logistic model
+                      family = "binomial",
+                      # Use alpha = 1 for lasso.
+                      alpha = 1,
+                      lambda = lasso_top_lambda)
+
+```
+
+
+```{r save_lasso_results}
+
+saveRDS(lasso_model, '../data/lasso_model.rds')
+saveRDS(lasso_top_cutoff, '../data/lasso_top_cutoff.rds')
+
+```
+
+
+
+
+
+
+# Random Forest
+
+For the random forest model, we will use the `ranger` package.
+
+```{r}
+
+# Create a vector of the RF hyperparameter "mtry" - we will append these to the
+# splits, so we can tune various splits with these different mtry values.
+cv_tune_rf <- cv_data %>% 
+  crossing(mtry = c(2, 4, 8, 10, 12, 16))
+
+```
+
+
+
+```{r}
+# Build several different models with Cross-Validation splits using the CV
+# Training sets.
+
+cv_models_rf <- cv_tune_rf %>% 
+  # Note: training_x_rows lets us know the row numbers to subset for each split.
+  # We will map2() this, along with the mtry hyperparam, to the splits.
+  mutate(model = map2(training_x_rows, 
+                      mtry, 
+                      ~ranger(x = train_all_x[.x, ],
+                              y = train_all_y[.x],
+                              mtry = .y,
+                              num.trees = 100, 
+                              seed = 8)))
+```
+
+
+```{r}
+
+# Now return the actual results ("Survived" column) along with the predictions
+# from each of the models on the CV Validation sets.
+
+cv_prep_rf <- cv_models_rf %>% 
+  crossing(prob_cutoff) %>% 
+  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
+         # Note: validating_x_rows lets us know the row numbers to subset for
+         # each split from the original train_x_all model matrix. We will use
+         # pmap() to cross-validate each model on the resulting validate set,
+         # and also try a full range of probability cutoffs, and see which
+         # combintation of mtry and probability cutoff have the best mean
+         # performance.
+         validate_predicted = pmap(list(model, 
+                                        validating_x_rows, 
+                                        prob_cutoff),
+                                   ~predict(object = ..1, 
+                                            # Note: Make sure to use train_x
+                                            # here because it actually contains
+                                            # all the observations, and this
+                                            # will make sure when they are
+                                            # subsetted by validating_x_rows,
+                                            # they are all actually present.
+                                            data = train_all_x[..2, ], 
+                                            type = "response")$predictions >= ..3))
+```
+
+
+```{r}
+
+# NOTE: Per the official Kaggle website here, the metric to use for this competition is Accuracy:
+# "Metric: Your score is the percentage of passengers you correctly predict. This is known as accuracy."
+
+# https://www.kaggle.com/competitions/titanic/overview/evaluation
+
+cv_accuracy_rf <- cv_prep_rf %>% 
+  # map2_dbl() the validation actuals vs. the validation model predictions to
+  # calculate the accuracy per model. 
+  mutate(accuracy = map2_dbl(.x = validate_actual, .y = validate_predicted,
+                           ~accuracy(actual = .x, predicted = .y)))
+
+# Calculate the mean accuracy level for each mtry hyperparam value. The mtry
+# with the highest accuracy is the one we will select for buildingsaving the final
+# random forest model.
+rf_accuracy_summ <- cv_accuracy_rf %>% 
+  group_by(mtry, prob_cutoff) %>% 
+  summarise(mean_accuracy = mean(accuracy)) %>% 
+  ungroup() %>% 
+  arrange(desc(mean_accuracy))
+
+rf_top_mtry <- rf_accuracy_summ %>% 
+  slice_max(order_by = mean_accuracy, n = 1, with_ties = FALSE) %>% 
+  pull(mtry)
+
+rf_top_cutoff <- rf_accuracy_summ %>% 
+  slice_max(order_by = mean_accuracy, n = 1, with_ties = FALSE) %>% 
+  pull(prob_cutoff)
+  
+rf_accuracy_summ
+```
+
+```{r}
+
+# Build final random forest model with the best-performing mtry hyperparam value.
+
+rf_model <- ranger(x = train_all_x,
+                   y = train_all_y,
+                   mtry = rf_top_mtry,
+                   num.trees = 100,
+                   seed = 8)
+
+```
+
+
+```{r save_rf_results}
+
+saveRDS(rf_model, '../data/rf_model.rds')
+saveRDS(rf_top_cutoff, '../data/rf_top_cutoff.rds')
+
+```
+
+
+
+
+# XGBoost
+
+For the XGBoost model, we will use the `xgboost` package.
+
+
+```{r}
+# Build several different models with Cross-Validation splits using the CV
+# Training sets.
+
+# This function will be mapped below to calculate the scale_pos_weight hyperparam.
+getScaleWeight <- function(y) {
+  sum(!y)/sum(y)
+}
+
+# Note: This actually runs pretty fast - takes anywhere from 2min to 10min.
+tic()
+cv_models_xgb <- cv_data %>% 
+  mutate(scale_pos_weight = map(training_x_rows, ~getScaleWeight(train_all_y[.x]))) %>% 
+  crossing(eta = c(0.01, 0.05, 0.1),
+           max_depth = c(4, 6, 8),
+           subsample = c(0.7, 1),
+           gamma = c(0, 1, 5),
+           max_delta_step = c(0, 1, 5)) %>% 
+  mutate(model = pmap(list(training_x_rows,
+                           scale_pos_weight,
+                           eta,
+                           max_depth,
+                           subsample,
+                           gamma,
+                           max_delta_step),
+                      function(training_x_rows,
+                               scale_pos_weight,
+                               eta,
+                               max_depth,
+                               subsample,
+                               gamma,
+                               max_delta_step) {
+                        xgboost(data = train_all_x[training_x_rows, ],
+                                label = train_all_y[training_x_rows],
+                                objective = 'binary:logistic',
+                                eval_metric = 'error',
+                                nthread = 22,
+                                print_every_n = 500,
+                                nrounds = 500,
+                                early_stopping_rounds = 20,
+                                seed = 8,
+                                missing = 'UNKNOWN',
+                                # Tuning params
+                                eta = eta,
+                                max_depth = max_depth,
+                                scale_pos_weight = scale_pos_weight,
+                                gamma = gamma,
+                                subsample = subsample,
+                                max_delta_step = max_delta_step,
+                                save_period = 0)}))
+toc()
+                        
+
+```
+
+```{r}
+
+# approx ~25sec
+tic()
+cv_prep_xgb <- cv_models_xgb %>% 
+  # Note: Like glmnet, xgboost also has an issue with tidyr::crossing(), so to
+  # tune across all probability cutoffs, I found I had to use
+  # tidyr::expand_grid() instead.
+  expand_grid(prob_cutoff = prob_cutoff) %>% 
+  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
+         validate_prob = map2(model, validating_x_rows,
+                                   ~predict(.x, train_all_x[.y, ], type = 'response')),
+         validate_predicted = map2(validate_prob, prob_cutoff,
+                                  ~.x >= .y))
+toc()
+
+```
+
+
+```{r}
+# NOTE: Per the official Kaggle website here, the metric to use for this competition is Accuracy:
+# "Metric: Your score is the percentage of passengers you correctly predict. This is known as accuracy."
+
+# https://www.kaggle.com/competitions/titanic/overview/evaluation
+
+cv_accuracy_xgb <- cv_prep_xgb %>% 
+  # map2_dbl() the validation actuals vs. the validation model predictions to
+  # calculate the accuracy per model. 
+  mutate(accuracy = map2_dbl(.x = validate_actual, .y = validate_predicted,
+                           ~accuracy(actual = .x, predicted = .y)))
+
+# Calculate the mean accuracy level for each mtry hyperparam value. The mtry
+# with the highest accuracy is the one we will select for buildingsaving the final
+# random forest model.
+xgb_accuracy_summ <- cv_accuracy_xgb %>% 
+  # Note: "id" is the "Fold #" - including this in group_by() is consistent with
+  # sample code.
+  group_by(id,
+           # these are all standard hyperparams that are grouped in sample code
+           eta, max_depth, subsample, gamma, max_delta_step,
+           # i also include prob_cutoff in group_by() similar to RF and Lasso above.
+           prob_cutoff) %>% 
+  summarise(mean_accuracy = mean(accuracy)) %>% 
+  ungroup() %>% 
+  arrange(desc(mean_accuracy))
+
+xgb_best_params <- xgb_accuracy_summ %>% 
+  slice_max(order_by = mean_accuracy, n = 1, with_ties = FALSE) 
+
+xgb_top_cutoff <- xgb_accuracy_summ %>% 
+  slice_max(order_by = mean_accuracy, n = 1, with_ties = FALSE) %>% 
+  pull(prob_cutoff)
+  
+rf_accuracy_summ
+```
+
+
+```{r}
+
+# Build final XGBoost model with the best-performing hyperparam values.
+
+set.seed(8)
+
+# approx 1sec
+
+tic()
+xgb_model <- xgboost(data = train_all_x,
+                     label = train_all_y,
+                     print_every_n = 50,
+                     # Fixed params
+                     nrounds = 500,
+                     early_stopping_rounds = 10,
+                     nthread = 22,
+                     # Next 2 params relevant to binary classifier with accuracy
+                     # as the evaluation metric.
+                     objective = 'binary:logistic',
+                     eval_metric = 'error',
+                     # Hyperparams from best performing model from
+                     # cross-validation above.
+                     eta = xgb_best_params$eta, 
+                     max_depth = xgb_best_params$max_depth, 
+                     subsample = xgb_best_params$subsample, 
+                     gamma = xgb_best_params$gamma, 
+                     max_delta_step = xgb_best_params$max_delta_step)
+toc()
+
+
+```
+
+
+```{r save_xgb_results}
+
+saveRDS(xgb_model, '../data/xgb_model.rds')
+saveRDS(xgb_top_cutoff, '../data/xgb_top_cutoff.rds')
+
+```
+
+
+
+
+
+
+
