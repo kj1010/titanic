@@ -11,7 +11,7 @@
 
 
 
-<title>Build: Random Forest Model</title>
+<title>Build: LASSO Model - New Version Feb. 2023</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1744,7 +1744,8 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Build: Random Forest Model</h1>
+<h1 class="title toc-ignore">Build: LASSO Model - New Version
+Feb. 2023</h1>
 
 </div>
 
@@ -1752,152 +1753,78 @@ display: none;
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5saWJyYXJ5KHRpZHl2ZXJzZSlcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5saWJyYXJ5KHRpZHl2ZXJzZSlcbmxpYnJhcnkodGljdG9jKVxuXG5saWJyYXJ5KE1hdHJpeClcbmxpYnJhcnkoZ2xtbmV0KVxuYGBgIn0= -->
 <pre class="r"><code>
-library(tidyverse)</code></pre>
+library(tidyverse)
+library(tictoc)
+
+library(Matrix)
+library(glmnet)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2RzIG92ZXJ3cml0dGVuIGJ5ICdkYnBseXInOlxuICBtZXRob2QgICAgICAgICBmcm9tXG4gIHByaW50LnRibF9sYXp5ICAgICBcbiAgcHJpbnQudGJsX3NxbCAgICAgIFxu4pSA4pSAIEF0dGFjaGluZyBwYWNrYWdlcyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAgdGlkeXZlcnNlIDEuMy4yIOKUgOKUgOKclCBnZ3Bsb3QyIDMuNC4wICAgICAg4pyUIHB1cnJyICAgMC4zLjQgXG7inJQgdGliYmxlICAzLjEuOCAgICAgIOKclCBkcGx5ciAgIDEuMC4xMFxu4pyUIHRpZHlyICAgMS4yLjEgICAgICDinJQgc3RyaW5nciAxLjQuMSBcbuKclCByZWFkciAgIDIuMS4zICAgICAg4pyUIGZvcmNhdHMgMC41LjEg4pSA4pSAIENvbmZsaWN0cyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAgdGlkeXZlcnNlX2NvbmZsaWN0cygpIOKUgOKUgFxu4pyWIGRwbHlyOjpmaWx0ZXIoKSBtYXNrcyBzdGF0czo6ZmlsdGVyKClcbuKcliBkcGx5cjo6bGFnKCkgICAgbWFza3Mgc3RhdHM6OmxhZygpXG4ifQ== -->
-<pre><code>Registered S3 methods overwritten by &#39;dbplyr&#39;:
-  method         from
-  print.tbl_lazy     
-  print.tbl_sql      
-── Attaching packages ──────────────────────────────────────────────────────────── tidyverse 1.3.2 ──✔ ggplot2 3.4.0      ✔ purrr   0.3.4 
-✔ tibble  3.1.8      ✔ dplyr   1.0.10
-✔ tidyr   1.2.1      ✔ stringr 1.4.1 
-✔ readr   2.1.3      ✔ forcats 0.5.1 ── Conflicts ─────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
-✖ dplyr::filter() masks stats::filter()
-✖ dplyr::lag()    masks stats::lag()</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGVkIGdsbW5ldCA0LjEtNlxuIn0= -->
+<pre><code>Loaded glmnet 4.1-6</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShNZXRyaWNzKVxubGlicmFyeShNYXRyaXgpXG5gYGAifQ== -->
-<pre class="r"><code>library(Metrics)
-library(Matrix)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyc2FtcGxlKVxuXG5gYGAifQ== -->
+<pre class="r"><code>library(rsample)
+</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYTWF0cml44oCZXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTp0aWR5cuKAmTpcblxuICAgIGV4cGFuZCwgcGFjaywgdW5wYWNrXG4ifQ== -->
-<pre><code>
-Attaching package: ‘Matrix’
-
-The following objects are masked from ‘package:tidyr’:
-
-    expand, pack, unpack</code></pre>
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudHJhaW5fZmluYWwgPC0gcmVhZFJEUygnLi4vZGF0YS90cmFpbl9maW5hbC5yZHMnKVxuYGBgIn0= -->
+<pre class="r"><code>train_final &lt;- readRDS(&#39;../data/train_final.rds&#39;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYnN0IDwtIHhnYi5jdihwYXJhbSwgZHRyYWluLCBuZm9sZCA9IDUsIG5yb3VuZHMgPSAxMDAsIGV0YSA9IDAuOCxcbmNhbGxiYWNrcyA9IGxpc3QoY2IuZ2JsaW5lYXIuaGlzdG9yeSgpKSlcblxuYGBgIn0= -->
+<pre class="r"><code>bst &lt;- xgb.cv(param, dtrain, nfold = 5, nrounds = 100, eta = 0.8,
+callbacks = list(cb.gblinear.history()))
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4geGdiLml0ZXIudXBkYXRlKGZkJGJzdCwgZmQkZHRyYWluLCBpdGVyYXRpb24gLSAxLCBvYmopIDogXG4gIFsyMjowNDowNF0gc3JjL29iamVjdGl2ZS9yZWdyZXNzaW9uX29iai5jdToxNDg6IGxhYmVsIG11c3QgYmUgaW4gWzAsMV0gZm9yIGxvZ2lzdGljIHJlZ3Jlc3Npb25cblN0YWNrIHRyYWNlOlxuICBbYnRdICgwKSAxICAgeGdib29zdC5zbyAgICAgICAgICAgICAgICAgICAgICAgICAgMHgwMDAwMDAwMTBkZGY5ODU0IGRtbGM6OkxvZ01lc3NhZ2VGYXRhbDo6fkxvZ01lc3NhZ2VGYXRhbCgpICsgMTE2XG4gIFtidF0gKDEpIDIgICB4Z2Jvb3N0LnNvICAgICAgICAgICAgICAgICAgICAgICAgICAweDAwMDAwMDAxMGRlMmQwZjcgeGdib29zdDo6b2JqOjpSZWdMb3NzT2JqPHhnYm9vc3Q6Om9iajo6TG9naXN0aWNSZWdyZXNzaW9uPjo6R2V0R3JhZGllbnQoeGdib29zdDo6SG9zdERldmljZVZlY3RvcjxmbG9hdD4gY29uc3QmLCB4Z2Jvb3N0OjpNZXRhSW5mbyBjb25zdCYsIGludCwgeGdib29zdDo6SG9zdERldmljZVZlY3Rvcjx4Z2Jvb3N0OjpkZXRhaWw6OkdyYWRpZW50UGFpckludGVybmFsPGZsb2F0PiA+KikgKyA4MzlcbiAgW2J0XSAoMikgMyAgIHhnYm9vc3Quc28gICAgICAgICAgICAgICAgICAgICAgICAgIDB4MDAwMDAwMDEwZGY3ZjI2MSB4Z2Jvb3N0OjpMZWFybmVySW1wbDo6VXBkYXRlT25lSXRlcihpbnQsIHN0ZDo6X18xOjpzaGFyZWRfcHRyPHhnYm9vc3Q6OkRNYXRyaXg+KSArIDU3N1xuICBbYnRdICgzKSA0ICAgeGdib29zdC5zbyAgICAgICAgICAgICAgICAgICAgICAgICAgMHgwMDAwMDAwMTBkZmYyZGExIFhHQm9vc3RlclVwZGF0ZU9uZUl0ZXIgKyAxNDVcbiAgW2J0XSAoNCkgNSAgIHhnYm9vc3Quc28gICAgICAgICAgICAgICAgICAgICAgICAgIDB4MDAwMDAwMDEwZGRmNjEyMyBYR0Jvb3N0ZXJVcGRhdGVPbmVJdGVyX1IgKyA2N1xuICBbYnRdICg1KSA2ICAgbGliUi5keWxpYiAgICAgICAgICAgICAgICAgICAgICAgICAgMHgwMDAwMDAwMTA0MDBiMjcyIFJfZG9Eb3RDYWxsICsgMTQ1OFxuICBbYnRdICg2KSA3ICAgbGliUi5keWxpYlxuIn0= -->
+<pre><code>Error in xgb.iter.update(fd$bst, fd$dtrain, iteration - 1, obj) : 
+  [22:04:04] src/objective/regression_obj.cu:148: label must be in [0,1] for logistic regression
+Stack trace:
+  [bt] (0) 1   xgboost.so                          0x000000010ddf9854 dmlc::LogMessageFatal::~LogMessageFatal() + 116
+  [bt] (1) 2   xgboost.so                          0x000000010de2d0f7 xgboost::obj::RegLossObj&lt;xgboost::obj::LogisticRegression&gt;::GetGradient(xgboost::HostDeviceVector&lt;float&gt; const&amp;, xgboost::MetaInfo const&amp;, int, xgboost::HostDeviceVector&lt;xgboost::detail::GradientPairInternal&lt;float&gt; &gt;*) + 839
+  [bt] (2) 3   xgboost.so                          0x000000010df7f261 xgboost::LearnerImpl::UpdateOneIter(int, std::__1::shared_ptr&lt;xgboost::DMatrix&gt;) + 577
+  [bt] (3) 4   xgboost.so                          0x000000010dff2da1 XGBoosterUpdateOneIter + 145
+  [bt] (4) 5   xgboost.so                          0x000000010ddf6123 XGBoosterUpdateOneIter_R + 67
+  [bt] (5) 6   libR.dylib                          0x000000010400b272 R_doDotCall + 1458
+  [bt] (6) 7   libR.dylib</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyYW5nZXIpXG5saWJyYXJ5KHJzYW1wbGUpXG5cbmBgYCJ9 -->
-<pre class="r"><code>library(ranger)
-library(rsample)
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudHJhaW5feF94Z2IgPC0geGdiLkRNYXRyaXgodHJhaW5feCwgbGFiZWwgPSBTdXJ2aXZlZCwgbnRocmVhZCA9IDIpXG5cbmBgYCJ9 -->
+<pre class="r"><code>train_x_xgb &lt;- xgb.DMatrix(train_x, label = Survived, nthread = 2)
 </code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gYXBwZW5kKGluZm8sIGxpc3QoLi4uKSkgOiBvYmplY3QgJ1N1cnZpdmVkJyBub3QgZm91bmRcbiJ9 -->
+<pre><code>Error in append(info, list(...)) : object &#39;Survived&#39; not found</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudHJhaW5fZmluYWwgPC0gcmVhZFJEUygnLi4vZGF0YS90cmFpbl9maW5hbC5yZHMnKVxuXG50cmFpbl9tb2QgPC0gdHJhaW5fZmluYWwgJT4lIFxuICAjIFJlbW92aW5nIFBhc3NlbmdlcklkIGJlY2F1c2UgaXQncyB0aGUgdW5pcXVlIGlkZW50aWZpZXIga2V5LiBBbHNvIHJlbW92aW5nXG4gICMgTmFtZSwgVGlja2V0LCBhbmQgQ2FiaW4gYmVjYXVzZSB0aGV5IGFyZSB0b28gdW5pcXVlLCBzbyB3aGVuIHlvdSBjcmVhdGVcbiAgIyBkdW1taWZpZWQgbW9kZWwgbWF0cmljZXMgeW91IHdpbGwgZW5kIHVwIHdpdGggdW5lcXVhbCBjb2x1bW4gY291bnRzIGJldHdlZW5cbiAgIyB5b3VyIFRSQUlOIGFuZCBWQUxJREFURS5cbiAgc2VsZWN0KC1QYXNzZW5nZXJJZCwgLU5hbWUsIC1UaWNrZXQsIC1DYWJpbikgJT4lIFxuICAjIFdlIG5lZWQgdGhlIHJvdyBudW1iZXIgdG8gZXh0cmFjdCB0aGUgY29ycmVjdCByZWNvcmRzIGZvciBlYWNoIGNvcnJlc3BvbmRpbmdcbiAgIyBjcm9zcy12YWxpZGF0aW9uIHNldCBsYXRlciBvbi5cbiAgbXV0YXRlKFN1cnZpdmVkID0gaWZfZWxzZShTdXJ2aXZlZCA9PSAneWVzJywgMSwgMCwgMCksIFxuICAgICAgICAgcm93X251bSA9IDE6bigpKVxuYGBgIn0= -->
-<pre class="r"><code>train_final &lt;- readRDS(&#39;../data/train_final.rds&#39;)
-
-train_mod &lt;- train_final %&gt;% 
-  # Removing PassengerId because it&#39;s the unique identifier key. Also removing
-  # Name, Ticket, and Cabin because they are too unique, so when you create
-  # dummified model matrices you will end up with unequal column counts between
-  # your TRAIN and VALIDATE.
-  select(-PassengerId, -Name, -Ticket, -Cabin) %&gt;% 
-  # We need the row number to extract the correct records for each corresponding
-  # cross-validation set later on.
-  mutate(Survived = if_else(Survived == &#39;yes&#39;, 1, 0, 0), 
-         row_num = 1:n())</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBOT1RFOiBTaG91bGQgcHJvYmFibHkgcmVuYW1lIHRoaXMgLSB3ZSBjYWxsaW5nIGl0IFRSQUlOIGJ1dCBpdCcgcmVhbGx5IHdoYXRcbiMgd2lpbGwgYmUgQk9USCBUcmFpbiBhbmQgVmFsaWRhdGUgYmVsb3cuLi5cblxudHJhaW5feCA8LSB0cmFpbl9tb2QgJT4lIFxuICBtb2RlbC5tYXRyaXgoU3Vydml2ZWR+Li0xLCBkYXRhID0gLilcblxudHJhaW5feSA8LSB0cmFpbl9tb2QkU3Vydml2ZWRcblxudHJhaW5fZGYgPC0gdHJhaW5fbW9kIFxuYGBgIn0= -->
-<pre class="r"><code># NOTE: Should probably rename this - we calling it TRAIN but it&#39; really what
-# wiill be BOTH Train and Validate below...
-
-train_x &lt;- train_mod %&gt;% 
-  model.matrix(Survived~.-1, data = .)
-
-train_y &lt;- train_mod$Survived
-
-train_df &lt;- train_mod </code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jcm9zc1ZhbFZlY3Rvcml6ZXIgPC0gZnVuY3Rpb24oZGF0YSwgaykge1xuICBcbiAgUGFzc2VuZ2VySWQgPC0gdW5pcXVlKGRhdGEkUGFzc2VuZ2VySWQpXG4gIFxuICBuIDwtIGxlbmd0aChQYXNzZW5nZXJJZClcbiAgZm9sZHMgPC0gc2FtcGxlKHJlcCgxOmssIGxlbmd0aC5vdXQgPSBuKSlcbiAgXG4gIGlkeCA8LSBzZXFfbGVuKG4pXG4gIGZvbGRfaWR4IDwtIHNwbGl0KGlkeCwgZm9sZHMpXG4gIFxuICBmb2xkIDwtIGZ1bmN0aW9uKHRlc3QpIHtcbiAgICBsaXN0KFxuICAgICAgdHJhaW5fcm93cyA9IHdoaWNoKGRhdGEkUGFzc2VuZ2VySWQgJWluJSBQYXNzZW5nZXJJZFtzZXRkaWZmKGlkeCwgdGVzdCldKSxcbiAgICAgIHZhbGlkYXRlX3Jvd3MgPSB3aGljaChkYXRhJFBhc3NlbmdlcklkICVpbiUgUGFzc2VuZ2VySWRbdGVzdF0pXG4gICAgKVxuICB9XG4gIGNvbHMgPC0gcHVycnI6OnRyYW5zcG9zZShwdXJycjo6bWFwKGZvbGRfaWR4LCBmb2xkKSlcbiAgY29sc1tbJ2ZvbGQnXV0gPC0gMTprXG4gIHRibF9kZihjb2xzKVxuICBcbn1cblxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG50cmFpbl9zcGxpdCA8LSBpbml0aWFsX3NwbGl0KHRyYWluX21vZCwgcHJvcCA9IC44MClcblxudHJhaW5pbmdfZGF0YSA8LSB0cmFpbmluZyh0cmFpbl9zcGxpdClcbnRlc3RpbmdfZGF0YSA8LSB0ZXN0aW5nKHRyYWluX3NwbGl0KVxuXG5gYGAifQ== -->
 <pre class="r"><code>
-crossValVectorizer &lt;- function(data, k) {
-  
-  PassengerId &lt;- unique(data$PassengerId)
-  
-  n &lt;- length(PassengerId)
-  folds &lt;- sample(rep(1:k, length.out = n))
-  
-  idx &lt;- seq_len(n)
-  fold_idx &lt;- split(idx, folds)
-  
-  fold &lt;- function(test) {
-    list(
-      train_rows = which(data$PassengerId %in% PassengerId[setdiff(idx, test)]),
-      validate_rows = which(data$PassengerId %in% PassengerId[test])
-    )
-  }
-  cols &lt;- purrr::transpose(purrr::map(fold_idx, fold))
-  cols[[&#39;fold&#39;]] &lt;- 1:k
-  tbl_df(cols)
-  
-}
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5zZXQuc2VlZCgxKVxuXG5jdl9yZWYgPC0gY3Jvc3NWYWxWZWN0b3JpemVyKHRyYWluX2ZpbmFsLCBrID0gMykgJT4lIFxuICBtdXRhdGUoXG4gICAgdHJhaW5fYWN0dWFsID0gbWFwKHRyYWluX3Jvd3MsIH50cmFpbl95Wy54XSksXG4gICAgdmFsaWRhdGVfYWN0dWFsID0gbWFwKHZhbGlkYXRlX3Jvd3MsIH50cmFpbl95Wy54XSkpXG5cbmBgYCJ9 -->
-<pre class="r"><code>
-set.seed(1)
-
-cv_ref &lt;- crossValVectorizer(train_final, k = 3) %&gt;% 
-  mutate(
-    train_actual = map(train_rows, ~train_y[.x]),
-    validate_actual = map(validate_rows, ~train_y[.x]))
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>Above is taken directly from old version explore-model_selection.</p>
-<div id="section" class="section level10">
-<p class="heading"></p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jIHJzYW1wbGU6OmluaXRpYWxfc3BsaXQoKSBwYXJ0aXRpb25zIHRoZSBUUkFJTiBzZXQgaW50byBhIHJhbmRvbSBzcGxpdCAtIDgwJVxuIyBmb3IgVFJBSU5JTkcsIDIwJSBmb3IgVEVTVElORyAob3IgbW9yZSBhY2N1cmF0ZWx5LCBWQUxJREFUSU5HKS4gTm90ZTogVGhpcyBpc1xuIyBhIGhhcmQgc3BsaXQgYWNyb3NzIHRoZSBlbnRpcmUgb3JpZ2luYWwgVFJBSU4gc2V0IC0gc28gdGhlIFRSQUlOSU5HIHJlY29yZHNcbiMgd2lsbCBPTkxZIGJlIHVzZWQgZm9yIFRSQUlOSU5HLCB0aGUgVEVTVElORyB3aWxsIGJlIE9OTFkgZm9yIFZBTElEQVRJTkcuXG50cmFpbl9zcGxpdCA8LSBpbml0aWFsX3NwbGl0KHRyYWluX21vZCwgcHJvcCA9IC44MClcblxuIyB0cmFpbmluZygpIGFuZCB0ZXN0aW5nKCkgYXJlIHVzZWQgdG8gZXh0cmFjdCB0aGUgcmVzdWx0aW5nIGRhdGEuXG5cbiMgTk9URTogT25seSB0cmFpbmdfZGF0YSBpcyBhY3R1YWxseSB1c2VkIGJlbG93LiBUaGUgdGVzdGluZ19kYXRhIGRmIGlzIGp1c3QgaGVyZSBmb3JcbiMgaWxsdXN0cmF0aXZlIHB1cnBvc2VzIG9mIGhvdyB0aGUgcnNhbXBsZSBmdW5jdGlvbnMgd29yayBvbiBhIHNpbmdsZSBkZi5cblxuIyBOb3RlOiBucm93KHRyYWluaW5nX2RhdGEpID09IDcxMiAob3IgODAlIG9mIHRoZSBvcmlnaW5hbCBUUkFJTiwgd2l0aCBOID0gODkxKVxudHJhaW5pbmdfZGF0YSA8LSB0cmFpbmluZyh0cmFpbl9zcGxpdClcblxuIyBOb3RlOiBucm93KHRlc3RpbmdfZGF0YSkgPT0gMTc5IChvciAyMCUgb2YgdGhlIG9yaWdpbmFsIFRSQUlOLCB3aXRoIE4gPSAxNzkpXG52YWxpZGF0aW5nX2RhdGEgPC0gdGVzdGluZyh0cmFpbl9zcGxpdClcblxudmFsaWRhdGVfeCA8LSB2YWxpZGF0aW5nX2RhdGEgJT4lIFxuICBtb2RlbC5tYXRyaXgoU3Vydml2ZWR+Li0xLCBkYXRhID0gLilcbmBgYCJ9 -->
-<pre class="r"><code>
-# rsample::initial_split() partitions the TRAIN set into a random split - 80%
-# for TRAINING, 20% for TESTING (or more accurately, VALIDATING). Note: This is
-# a hard split across the entire original TRAIN set - so the TRAINING records
-# will ONLY be used for TRAINING, the TESTING will be ONLY for VALIDATING.
 train_split &lt;- initial_split(train_mod, prop = .80)
 
-# training() and testing() are used to extract the resulting data.
-
-# NOTE: Only traing_data is actually used below. The testing_data df is just here for
-# illustrative purposes of how the rsample functions work on a single df.
-
-# Note: nrow(training_data) == 712 (or 80% of the original TRAIN, with N = 891)
 training_data &lt;- training(train_split)
-
-# Note: nrow(testing_data) == 179 (or 20% of the original TRAIN, with N = 179)
-validating_data &lt;- testing(train_split)
-
-validate_x &lt;- validating_data %&gt;% 
-  model.matrix(Survived~.-1, data = .)</code></pre>
+testing_data &lt;- testing(train_split)
+</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jIHJzYW1wbGU6OnZmb2xkX2N2KCkgdGhlbiBzZXRzIHVwIGNyb3NzLXZhbGlkYXRpb24gKHdpdGggNSBmb2xkcyBiZWxvdyksIGJ5XG4jIHRha2luZyA4MCUgb2YgYm90aCB0aGUgdHJhaW5pbmcgYW5kIHRlc3RpbmcgKGFrYTogdmFsaWRhdGlvbiBzZXQpLlxuY3Zfc3BsaXQgPC0gdmZvbGRfY3YodHJhaW5pbmdfZGF0YSwgdiA9IDUpXG5cbiNnbGltcHNlKGN2X3NwbGl0KVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jdl9zcGxpdCA8LSB2Zm9sZF9jdih0cmFpbmluZ19kYXRhLCB2ID0gNSlcblxuI2dsaW1wc2UoY3Zfc3BsaXQpXG5gYGAifQ== -->
 <pre class="r"><code>
-# rsample::vfold_cv() then sets up cross-validation (with 5 folds below), by
-# taking 80% of both the training and testing (aka: validation set).
 cv_split &lt;- vfold_cv(training_data, v = 5)
 
 #glimpse(cv_split)</code></pre>
@@ -1906,28 +1833,11 @@ cv_split &lt;- vfold_cv(training_data, v = 5)
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jdl9kYXRhIDwtIGN2X3NwbGl0ICU+JSBcbiAgIyBXZSBzZWUgaW4gdGhlIGluZGl2aWR1YWwgZm9sZHMsIHRoYXQgZWFjaCBpcyA4MCUgb2YgdGhlIG9yaWdpbmFsIGluaXRpYWxfc3BsaXQoKS4gU28gaW4gdGhlIFwidHJhaW5cIiBjb2x1bW4sIE4gPSA1NjkgaXMgODAlIG9mIHRoZSA3MTIgdHJhaW5pbmcgdG90YWwsIGFuZCBpbiB0aGUgXCJ2YWxpZGF0ZVwiIGNvbHVtbiwgTiA9IDE0MyBpcyA4MCUgb2YgdGhlIDE3OSBcInRlc3RpbmdcIiAodmFsaWRhdGlvbikgc2V0LlxuICBtdXRhdGUodHJhaW5pbmdfeCA9IG1hcChzcGxpdHMsIH50cmFpbmluZygueCkpLFxuICAgICAgICAgIyBJc29sYXRlIHRoZSBcIlN1cnZpdmVkXCIgb3V0Y29tZS5cbiAgICAgICAgIHRyYWluaW5nX3kgPSBtYXAoc3BsaXRzLCB+dHJhaW5pbmcoLngpWywgMV0pLFxuICAgICAgICAgIyBJc29sYXRlIHRoZSByb3cgbnVtYmVyIGNvbHVtbi5cbiAgICAgICAgIHRyYWluaW5nX3hfcm93c19kZiA9IG1hcChzcGxpdHMsIH50cmFpbmluZygueClbLCBuY29sKHRyYWluaW5nX2RhdGEpXSksXG4gICAgICAgICB0cmFpbmluZ194X3Jvd3MgPSBtYXAodHJhaW5pbmdfeF9yb3dzX2RmLCB+cHVsbCgueCkpLFxuICAgICAgICAgdmFsaWRhdGluZ194ID0gbWFwKHNwbGl0cywgfnRlc3RpbmcoLngpKSxcbiAgICAgICAgIHZhbGlkYXRpbmdfeF9yb3dzX2RmID0gbWFwKHNwbGl0cywgfnRlc3RpbmcoLngpWywgbmNvbCh2YWxpZGF0aW5nX2RhdGEpXSksXG4gICAgICAgICB2YWxpZGF0aW5nX3hfcm93cyA9IG1hcCh2YWxpZGF0aW5nX3hfcm93c19kZiwgfnB1bGwoLngpKSlcblxuIyBOT1RFOiBUaGlzIHN0ZXAgbWlnaHQgbm90IGJlIGFjdHVhbGx5IG5lY2Vzc2FyeSwgYnV0IGl0IHdpbGwgYWRkIGEgbmFtZSB0byBlYWNoIHRyYWluX3hfcm93cyBvYnNlcnZhdGlvbiB3aGljaCBpcyBhIGxpdHRsZSBoZWxwZnVsLlxubmFtZXMoY3ZfZGF0YSR0cmFpbmluZ194X3Jvd3MpIDwtIGN2X2RhdGEkaWRcbm5hbWVzKGN2X2RhdGEkdmFsaWRhdGluZ194X3Jvd3MpIDwtIGN2X2RhdGEkaWRcblxuICAgICAgICAgI3RyYWluX3hfcm93c190YmxfZGYgPSBhc190aWJibGUobmFtZXModHJhaW5feF9yb3dzLCBpZCkpKVxuICAjbXV0YXRlKHRyYWluX3hfcm93bnVtID0gdHJhaW5feFssXSlcbiAgI211dGF0ZSh0cmFpbiA9IG1hcCh0cmFpbl94LCB+bW9kZWwubWF0cml4KFN1cnZpdmVkfi4tMSwgZGF0YSA9IC54KSksXG4gICAgICAgICAjdGVzdCA9IG1hcCh0cmFpbl95LCB+cHVsbCgueCkpKVxuXG4jZ2xpbXBzZShjdl9kYXRhKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jdl9kYXRhIDwtIGN2X3NwbGl0ICU+JSBcbiAgbXV0YXRlKHRyYWluID0gbWFwKHNwbGl0cywgfnRyYWluaW5nKC54KSksXG4gICAgICAgICB2YWxpZGF0ZSA9IG1hcChzcGxpdHMsIH50ZXN0aW5nKC54KSkpXG5cbiNnbGltcHNlKGN2X2RhdGEpXG5gYGAifQ== -->
 <pre class="r"><code>
 cv_data &lt;- cv_split %&gt;% 
-  # We see in the individual folds, that each is 80% of the original initial_split(). So in the &quot;train&quot; column, N = 569 is 80% of the 712 training total, and in the &quot;validate&quot; column, N = 143 is 80% of the 179 &quot;testing&quot; (validation) set.
-  mutate(training_x = map(splits, ~training(.x)),
-         # Isolate the &quot;Survived&quot; outcome.
-         training_y = map(splits, ~training(.x)[, 1]),
-         # Isolate the row number column.
-         training_x_rows_df = map(splits, ~training(.x)[, ncol(training_data)]),
-         training_x_rows = map(training_x_rows_df, ~pull(.x)),
-         validating_x = map(splits, ~testing(.x)),
-         validating_x_rows_df = map(splits, ~testing(.x)[, ncol(validating_data)]),
-         validating_x_rows = map(validating_x_rows_df, ~pull(.x)))
-
-# NOTE: This step might not be actually necessary, but it will add a name to each train_x_rows observation which is a little helpful.
-names(cv_data$training_x_rows) &lt;- cv_data$id
-names(cv_data$validating_x_rows) &lt;- cv_data$id
-
-         #train_x_rows_tbl_df = as_tibble(names(train_x_rows, id)))
-  #mutate(train_x_rownum = train_x[,])
-  #mutate(train = map(train_x, ~model.matrix(Survived~.-1, data = .x)),
-         #test = map(train_y, ~pull(.x)))
+  mutate(train = map(splits, ~training(.x)),
+         validate = map(splits, ~testing(.x)))
 
 #glimpse(cv_data)</code></pre>
 <!-- rnb-source-end -->
@@ -1935,125 +1845,56 @@ names(cv_data$validating_x_rows) &lt;- cv_data$id
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jdl90dW5lIDwtIGN2X2RhdGEgJT4lIFxuICBjcm9zc2luZyhtdHJ5ID0gYygyLCA0LCA4LCAxMCwgMTIsIDE2KSlcblxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jIFdlIGJ1aWxkIGEgYmFzaWMgbW9kZWwgbW9zdGx5IGp1c3QgdG8gZ2V0IGEgbGlzdCBvZiBsYW1iZGEgdmFsdWVzLlxuYmFzaWNfbGFzc29fbW9kZWwgPC0gZ2xtbmV0KHRyYWluX3gsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgdHJhaW5feSxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIGxhc3NvXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgYWxwaGEgPSAxLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICMgY2xhc3NpZmljYXRpb25cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmYW1pbHkgPSAnYmlub21pYWwnKVxuXG5sYW1iZGFzIDwtIGJhc2ljX2xhc3NvX21vZGVsJGxhbWJkYVxuXG5gYGAifQ== -->
+<pre class="r"><code>
+# We build a basic model mostly just to get a list of lambda values.
+basic_lasso_model &lt;- glmnet(train_x,
+                            train_y,
+                            # lasso
+                            alpha = 1,
+                            # classification
+                            family = &#39;binomial&#39;)
+
+lambdas &lt;- basic_lasso_model$lambda
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jdl90dW5lIDwtIGN2X2RhdGEgJT4lIFxuICBjcm9zc2luZyhsYW1iZGEgPSBsYW1iZGFzKVxuXG5gYGAifQ== -->
 <pre class="r"><code>
 cv_tune &lt;- cv_data %&gt;% 
-  crossing(mtry = c(2, 4, 8, 10, 12, 16))
+  crossing(lambda = lambdas)
 </code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jdl9tb2RlbHNfcmYgPC0gY3ZfdHVuZSAlPiUgXG4gIG11dGF0ZShtb2RlbCA9IG1hcDIodHJhaW5pbmdfeCwgbXRyeSwgfnJhbmdlcihmb3JtdWxhID0gU3Vydml2ZWR+LixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjZGVwZW5kZW50LnZhcmlhYmxlLm5hbWUgPSBcIlN1cnZpdmVkXCIsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI3ggPSAuLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICN5ID0gdHJhaW5feCRTdXJ2aXZlZCxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBkYXRhID0gLngsIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG10cnkgPSAueSxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBudW0udHJlZXMgPSAxMDAsIHNlZWQgPSA4KSkpXG5gYGAifQ== -->
-<pre class="r"><code>
-cv_models_rf &lt;- cv_tune %&gt;% 
-  mutate(model = map2(training_x, mtry, ~ranger(formula = Survived~.,
-                                           #dependent.variable.name = &quot;Survived&quot;,
-                                           #x = .,
-                                           #y = train_x$Survived,
-                                           data = .x, 
-                                           mtry = .y,
-                                           num.trees = 100, seed = 8)))</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY3ZfbW9kZWxzX3JmIDwtIGN2X3R1bmUgJT4lIFxuICBtdXRhdGUobW9kZWwgPSBtYXAyKHRyYWluLCBsYW1iZGEsIH5nbG1uZXQoZm9ybXVsYSA9IFN1cnZpdmVkfi4sXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGF0YSA9IC54LCBsYW1iZGEgPSAueSxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbHBoYSA9IDEsIGZhbWlseSA9ICdiaW5vbWlhbCcpKSlcblxuYGBgIn0= -->
+<pre class="r"><code>cv_models_rf &lt;- cv_tune %&gt;% 
+  mutate(model = map2(train, lambda, ~glmnet(formula = Survived~.,
+                                           data = .x, lambda = .y,
+                                           alpha = 1, family = &#39;binomial&#39;)))
+</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3I6IG10cnkgY2FuIG5vdCBiZSBsYXJnZXIgdGhhbiBudW1iZXIgb2YgdmFyaWFibGVzIGluIGRhdGEuIFJhbmdlciB3aWxsIEVYSVQgbm93LlxuIn0= -->
-<pre><code>Error: mtry can not be larger than number of variables in data. Ranger will EXIT now.</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gYG11dGF0ZSgpYDpcbiEgUHJvYmxlbSB3aGlsZSBjb21wdXRpbmcgYG1vZGVsID0gbWFwMiguLi4pYC5cbkNhdXNlZCBieSBlcnJvciBpbiBgcmFuZ2VyKClgOlxuISBVc2VyIGludGVycnVwdCBvciBpbnRlcm5hbCBlcnJvci5cbkJhY2t0cmFjZTpcbiAgMS4gY3ZfdHVuZSAlPiUgLi4uXG4gIDcuIHB1cnJyOjptYXAyKC4uLilcbiAgOC4gLmYoLnhbW2ldXSwgLnlbW2ldXSwgLi4uKVxuICA5LiByYW5nZXI6OnJhbmdlciguLi4pXG4gMTAuIGJhc2U6OnN0b3AoXCJVc2VyIGludGVycnVwdCBvciBpbnRlcm5hbCBlcnJvci5cIilcbiJ9 -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gYG11dGF0ZSgpYDpcbiEgUHJvYmxlbSB3aGlsZSBjb21wdXRpbmcgYG1vZGVsID0gbWFwMiguLi4pYC5cbkNhdXNlZCBieSBlcnJvciBpbiBgZ2xtbmV0KClgOlxuISBhcmd1bWVudCBcInhcIiBpcyBtaXNzaW5nLCB3aXRoIG5vIGRlZmF1bHRcbkJhY2t0cmFjZTpcbiAxLiBjdl90dW5lICU+JSAuLi5cbiA3LiBwdXJycjo6bWFwMiguLi4pXG4gOC4gLmYoLnhbW2ldXSwgLnlbW2ldXSwgLi4uKVxuIDkuIGdsbW5ldDo6Z2xtbmV0KC4uLilcbiJ9 -->
 <pre><code>Error in `mutate()`:
 ! Problem while computing `model = map2(...)`.
-Caused by error in `ranger()`:
-! User interrupt or internal error.
+Caused by error in `glmnet()`:
+! argument &quot;x&quot; is missing, with no default
 Backtrace:
-  1. cv_tune %&gt;% ...
-  7. purrr::map2(...)
-  8. .f(.x[[i]], .y[[i]], ...)
-  9. ranger::ranger(...)
- 10. base::stop(&quot;User interrupt or internal error.&quot;)</code></pre>
+ 1. cv_tune %&gt;% ...
+ 7. purrr::map2(...)
+ 8. .f(.x[[i]], .y[[i]], ...)
+ 9. glmnet::glmnet(...)</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY3ZfcHJlcF9yZjIgPC0gY3ZfbW9kZWxzX3JmMiAlPiUgXG4gIG11dGF0ZSh2YWxpZGF0ZV9hY3R1YWwgPSBtYXAodmFsaWRhdGluZ194LCB+LngkU3Vydml2ZWQgPT0gMSksXG4gICAgICAgICB2YWxpZGF0ZV9wcmVkaWN0ZWQgPSBtYXAyKG1vZGVsLCB2YWxpZGF0aW5nX3hfcm93cyxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfnByZWRpY3Qob2JqZWN0ID0gLngsIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBkYXRhID0gdmFsaWRhdGVfeFsueSwgXSwgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHR5cGUgPSBcInJlc3BvbnNlXCIpKSlcblxuYGBgIn0= -->
-<pre class="r"><code>cv_prep_rf2 &lt;- cv_models_rf2 %&gt;% 
-  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
-         validate_predicted = map2(model, validating_x_rows,
-                                   ~predict(object = .x, 
-                                            data = validate_x[.y, ], 
-                                            type = &quot;response&quot;)))
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gYG11dGF0ZSgpYDpcbiEgUHJvYmxlbSB3aGlsZSBjb21wdXRpbmcgYHZhbGlkYXRlX3ByZWRpY3RlZCA9IG1hcDIoLi4uKWAuXG5DYXVzZWQgYnkgZXJyb3IgaW4gYHZhbGlkYXRlX3hbLnksIF1gOlxuISBzdWJzY3JpcHQgb3V0IG9mIGJvdW5kc1xuQmFja3RyYWNlOlxuICAxLiBjdl9tb2RlbHNfcmYyICU+JSAuLi5cbiAgNy4gcHVycnI6Om1hcDIoLi4uKVxuICA4LiAuZigueFtbaV1dLCAueVtbaV1dLCAuLi4pXG4gMTAuIHJhbmdlcjo6OnByZWRpY3QucmFuZ2VyKC4uLilcbiJ9 -->
-<pre><code>Error in `mutate()`:
-! Problem while computing `validate_predicted = map2(...)`.
-Caused by error in `validate_x[.y, ]`:
-! subscript out of bounds
-Backtrace:
-  1. cv_models_rf2 %&gt;% ...
-  7. purrr::map2(...)
-  8. .f(.x[[i]], .y[[i]], ...)
- 10. ranger:::predict.ranger(...)</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jIE5PVEU6IFBlciB0aGUgb2ZmaWNpYWwgS2FnZ2xlIHdlYnNpdGUgaGVyZSwgdGhlIG1ldHJpYyB0byB1c2UgZm9yIHRoaXMgY29tcGV0aXRpb24gaXMgQWNjdXJhY3k6XG4jIFwiTWV0cmljOiBZb3VyIHNjb3JlIGlzIHRoZSBwZXJjZW50YWdlIG9mIHBhc3NlbmdlcnMgeW91IGNvcnJlY3RseSBwcmVkaWN0LiBUaGlzIGlzIGtub3duIGFzIGFjY3VyYWN5LlwiXG5cbiMgaHR0cHM6Ly93d3cua2FnZ2xlLmNvbS9jb21wZXRpdGlvbnMvdGl0YW5pYy9vdmVydmlldy9ldmFsdWF0aW9uXG5cbmN2X3BlcmZfYWNjdXJhY3kgPC0gY3ZfcHJlcF9yZjIgJT4lIFxuICBtdXRhdGUoYWNjdXJhY3kgPSBtYXAyX2RibCgueCA9IHZhbGlkYXRlX2FjdHVhbCwgLnkgPSB2YWxpZGF0ZV9wcmVkaWN0ZWQsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICB+YWNjdXJhY3koYWN0dWFsID0gLngsIHByZWRpY3RlZCA9IC55KSkpXG5cbmN2X3BlcmZfYWNjdXJhY3kgJT4lIFxuICBncm91cF9ieShtdHJ5KSAlPiUgXG4gIHN1bW1hcmlzZShtZWFuX2FjY3VyYWN5ID0gbWVhbihhY2N1cmFjeSkpXG5gYGAifQ== -->
-<pre class="r"><code>
-# NOTE: Per the official Kaggle website here, the metric to use for this competition is Accuracy:
-# &quot;Metric: Your score is the percentage of passengers you correctly predict. This is known as accuracy.&quot;
 
-# https://www.kaggle.com/competitions/titanic/overview/evaluation
-
-cv_perf_accuracy &lt;- cv_prep_rf2 %&gt;% 
-  mutate(accuracy = map2_dbl(.x = validate_actual, .y = validate_predicted,
-                           ~accuracy(actual = .x, predicted = .y)))
-
-cv_perf_accuracy %&gt;% 
-  group_by(mtry) %&gt;% 
-  summarise(mean_accuracy = mean(accuracy))</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbInRibF9kZiIsInRibCIsImRhdGEuZnJhbWUiXSwibnJvdyI6NiwibmNvbCI6Miwic3VtbWFyeSI6eyJBIHRpYmJsZSI6WyI2IMOXIDIiXX19LCJyZGYiOiJINHNJQUFBQUFBQUFBd3R5aVREbWl1QmlZR0JnWm1CaFpHSmdaZ1V5R1ZoRFE5eDBMUmdZV0ppQUhFWUdGZ1pPRUYwQlZDUU1aSUFFK1lDWXpZRUJBaHdFb0xRQ2xGYUIwaHBRMm9BQkJzRDY3RisrZTFSaXZsekIvdVU4OTNraDdXWkEydWhibTJ1US9jdVZ6NWdpcDRkRDZRZ2d2V2ZUWHVFSmFBNWh6VXZNVFMwR01nVEFqb0VJc3VTV0ZGVkMyYnk1cVlsNThZbkp5YVZGaWNtVmFMbzVpL0xMOVdBbThJSk1hQUFTLy8vLy80VnVUWEpPWWpITUdwZ2dWMHBpU2FKZVdoRlFQNUQzRDAwTGUzNUJTV1orSGxBVEV5aWdXTkUwTXhhaENRaVU1b0Zja3FLYm5GR2FsNjFyYkFLeUFTd1BBYnhRTmhzU213bGlKOU4vcUZtc1VMUFlVdlBTTS9OU1lZN1BTVXhLellGeStJQmVCdnRZcjZBb002OEU1aFdnYUxGZVNYNUpJa3dkVjNKK0Rrd0U3RG1HZndCN2xUMlpJQUlBQUE9PSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["mtry"],"name":[1],"type":["dbl"],"align":["right"]},{"label":["mean_accuracy"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"2","2":"0.8104107"},{"1":"4","2":"0.8005713"},{"1":"8","2":"0.8005614"},{"1":"10","2":"0.8019896"},{"1":"12","2":"0.8019896"},{"1":"16","2":"0.8019699"}],"options":{"columns":{"min":{},"max":[10],"total":[2]},"rows":{"min":[10],"max":[10],"total":[6]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuTkFcbmBgYCJ9 -->
-<pre class="r"><code>NA</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jIEZpbmFsIG1vZGVsIGJ1aWxkXG5cbnJmX21vZGVsIDwtIHJhbmdlcihmb3JtdWxhID0gU3Vydml2ZWR+LixcbiAgICAgICAgICAgICAgICAgICBkYXRhID0gdHJhaW5fbW9kLFxuICAgICAgICAgICAgICAgICAgIG10cnkgPSA4LFxuICAgICAgICAgICAgICAgICAgIG51bS50cmVlcyA9IDEwMCxcbiAgICAgICAgICAgICAgICAgICBzZWVkID0gOClcblxuYGBgIn0= -->
-<pre class="r"><code>
-# Final model build
-
-rf_model &lt;- ranger(formula = Survived~.,
-                   data = train_mod,
-                   mtry = 8,
-                   num.trees = 100,
-                   seed = 8)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5zYXZlUkRTKHJmX21vZGVsLCAnLi4vZGF0YS9yZl9tb2RlbC5yZHMnKVxuXG5gYGAifQ== -->
-<pre class="r"><code>
-saveRDS(rf_model, &#39;../data/rf_model.rds&#39;)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-</div>
-
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiQnVpbGQ6IFJhbmRvbSBGb3Jlc3QgTW9kZWwiCm91dHB1dDogaHRtbF9ub3RlYm9vawotLS0KCmBgYHtyIGxpYnN9CgpsaWJyYXJ5KHRpZHl2ZXJzZSkKCmxpYnJhcnkoTWV0cmljcykKbGlicmFyeShNYXRyaXgpCmxpYnJhcnkocmFuZ2VyKQpsaWJyYXJ5KHJzYW1wbGUpCgpgYGAKCgpgYGB7ciBkYXRhfQp0cmFpbl9maW5hbCA8LSByZWFkUkRTKCcuLi9kYXRhL3RyYWluX2ZpbmFsLnJkcycpCgp0cmFpbl9tb2QgPC0gdHJhaW5fZmluYWwgJT4lIAogICMgUmVtb3ZpbmcgUGFzc2VuZ2VySWQgYmVjYXVzZSBpdCdzIHRoZSB1bmlxdWUgaWRlbnRpZmllciBrZXkuIEFsc28gcmVtb3ZpbmcKICAjIE5hbWUsIFRpY2tldCwgYW5kIENhYmluIGJlY2F1c2UgdGhleSBhcmUgdG9vIHVuaXF1ZSwgc28gd2hlbiB5b3UgY3JlYXRlCiAgIyBkdW1taWZpZWQgbW9kZWwgbWF0cmljZXMgeW91IHdpbGwgZW5kIHVwIHdpdGggdW5lcXVhbCBjb2x1bW4gY291bnRzIGJldHdlZW4KICAjIHlvdXIgVFJBSU4gYW5kIFZBTElEQVRFLgogIHNlbGVjdCgtUGFzc2VuZ2VySWQsIC1OYW1lLCAtVGlja2V0LCAtQ2FiaW4pICU+JSAKICAjIFdlIG5lZWQgdGhlIHJvdyBudW1iZXIgdG8gZXh0cmFjdCB0aGUgY29ycmVjdCByZWNvcmRzIGZvciBlYWNoIGNvcnJlc3BvbmRpbmcKICAjIGNyb3NzLXZhbGlkYXRpb24gc2V0IGxhdGVyIG9uLgogIG11dGF0ZShTdXJ2aXZlZCA9IGlmX2Vsc2UoU3Vydml2ZWQgPT0gJ3llcycsIDEsIDAsIDApLCAKICAgICAgICAgcm93X251bSA9IDE6bigpKQpgYGAKCgpgYGB7cn0KIyBOT1RFOiBTaG91bGQgcHJvYmFibHkgcmVuYW1lIHRoaXMgLSB3ZSBjYWxsaW5nIGl0IFRSQUlOIGJ1dCBpdCcgcmVhbGx5IHdoYXQKIyB3aWlsbCBiZSBCT1RIIFRyYWluIGFuZCBWYWxpZGF0ZSBiZWxvdy4uLgoKdHJhaW5feCA8LSB0cmFpbl9tb2QgJT4lIAogIG1vZGVsLm1hdHJpeChTdXJ2aXZlZH4uLTEsIGRhdGEgPSAuKQoKdHJhaW5feSA8LSB0cmFpbl9tb2QkU3Vydml2ZWQKCnRyYWluX2RmIDwtIHRyYWluX21vZCAKYGBgCgpgYGB7cn0KCmNyb3NzVmFsVmVjdG9yaXplciA8LSBmdW5jdGlvbihkYXRhLCBrKSB7CiAgCiAgUGFzc2VuZ2VySWQgPC0gdW5pcXVlKGRhdGEkUGFzc2VuZ2VySWQpCiAgCiAgbiA8LSBsZW5ndGgoUGFzc2VuZ2VySWQpCiAgZm9sZHMgPC0gc2FtcGxlKHJlcCgxOmssIGxlbmd0aC5vdXQgPSBuKSkKICAKICBpZHggPC0gc2VxX2xlbihuKQogIGZvbGRfaWR4IDwtIHNwbGl0KGlkeCwgZm9sZHMpCiAgCiAgZm9sZCA8LSBmdW5jdGlvbih0ZXN0KSB7CiAgICBsaXN0KAogICAgICB0cmFpbl9yb3dzID0gd2hpY2goZGF0YSRQYXNzZW5nZXJJZCAlaW4lIFBhc3NlbmdlcklkW3NldGRpZmYoaWR4LCB0ZXN0KV0pLAogICAgICB2YWxpZGF0ZV9yb3dzID0gd2hpY2goZGF0YSRQYXNzZW5nZXJJZCAlaW4lIFBhc3NlbmdlcklkW3Rlc3RdKQogICAgKQogIH0KICBjb2xzIDwtIHB1cnJyOjp0cmFuc3Bvc2UocHVycnI6Om1hcChmb2xkX2lkeCwgZm9sZCkpCiAgY29sc1tbJ2ZvbGQnXV0gPC0gMTprCiAgdGJsX2RmKGNvbHMpCiAgCn0KCmBgYAoKYGBge3J9CgpzZXQuc2VlZCgxKQoKY3ZfcmVmIDwtIGNyb3NzVmFsVmVjdG9yaXplcih0cmFpbl9maW5hbCwgayA9IDMpICU+JSAKICBtdXRhdGUoCiAgICB0cmFpbl9hY3R1YWwgPSBtYXAodHJhaW5fcm93cywgfnRyYWluX3lbLnhdKSwKICAgIHZhbGlkYXRlX2FjdHVhbCA9IG1hcCh2YWxpZGF0ZV9yb3dzLCB+dHJhaW5feVsueF0pKQoKYGBgCgoKCkFib3ZlIGlzIHRha2VuIGRpcmVjdGx5IGZyb20gb2xkIHZlcnNpb24gZXhwbG9yZS1tb2RlbF9zZWxlY3Rpb24uCgoKIyMjIyMjIyMjIwoKCgoKYGBge3J9CgojIHJzYW1wbGU6OmluaXRpYWxfc3BsaXQoKSBwYXJ0aXRpb25zIHRoZSBUUkFJTiBzZXQgaW50byBhIHJhbmRvbSBzcGxpdCAtIDgwJQojIGZvciBUUkFJTklORywgMjAlIGZvciBURVNUSU5HIChvciBtb3JlIGFjY3VyYXRlbHksIFZBTElEQVRJTkcpLiBOb3RlOiBUaGlzIGlzCiMgYSBoYXJkIHNwbGl0IGFjcm9zcyB0aGUgZW50aXJlIG9yaWdpbmFsIFRSQUlOIHNldCAtIHNvIHRoZSBUUkFJTklORyByZWNvcmRzCiMgd2lsbCBPTkxZIGJlIHVzZWQgZm9yIFRSQUlOSU5HLCB0aGUgVEVTVElORyB3aWxsIGJlIE9OTFkgZm9yIFZBTElEQVRJTkcuCnRyYWluX3NwbGl0IDwtIGluaXRpYWxfc3BsaXQodHJhaW5fbW9kLCBwcm9wID0gLjgwKQoKIyB0cmFpbmluZygpIGFuZCB0ZXN0aW5nKCkgYXJlIHVzZWQgdG8gZXh0cmFjdCB0aGUgcmVzdWx0aW5nIGRhdGEuCgojIE5PVEU6IE9ubHkgdHJhaW5nX2RhdGEgaXMgYWN0dWFsbHkgdXNlZCBiZWxvdy4gVGhlIHRlc3RpbmdfZGF0YSBkZiBpcyBqdXN0IGhlcmUgZm9yCiMgaWxsdXN0cmF0aXZlIHB1cnBvc2VzIG9mIGhvdyB0aGUgcnNhbXBsZSBmdW5jdGlvbnMgd29yayBvbiBhIHNpbmdsZSBkZi4KCiMgTm90ZTogbnJvdyh0cmFpbmluZ19kYXRhKSA9PSA3MTIgKG9yIDgwJSBvZiB0aGUgb3JpZ2luYWwgVFJBSU4sIHdpdGggTiA9IDg5MSkKdHJhaW5pbmdfZGF0YSA8LSB0cmFpbmluZyh0cmFpbl9zcGxpdCkKCiMgTm90ZTogbnJvdyh0ZXN0aW5nX2RhdGEpID09IDE3OSAob3IgMjAlIG9mIHRoZSBvcmlnaW5hbCBUUkFJTiwgd2l0aCBOID0gMTc5KQp2YWxpZGF0aW5nX2RhdGEgPC0gdGVzdGluZyh0cmFpbl9zcGxpdCkKCnZhbGlkYXRlX3ggPC0gdmFsaWRhdGluZ19kYXRhICU+JSAKICBtb2RlbC5tYXRyaXgoU3Vydml2ZWR+Li0xLCBkYXRhID0gLikKYGBgCgoKYGBge3J9CgojIHJzYW1wbGU6OnZmb2xkX2N2KCkgdGhlbiBzZXRzIHVwIGNyb3NzLXZhbGlkYXRpb24gKHdpdGggNSBmb2xkcyBiZWxvdyksIGJ5CiMgdGFraW5nIDgwJSBvZiBib3RoIHRoZSB0cmFpbmluZyBhbmQgdGVzdGluZyAoYWthOiB2YWxpZGF0aW9uIHNldCkuCmN2X3NwbGl0IDwtIHZmb2xkX2N2KHRyYWluaW5nX2RhdGEsIHYgPSA1KQoKI2dsaW1wc2UoY3Zfc3BsaXQpCmBgYAoKCmBgYHtyfQoKY3ZfZGF0YSA8LSBjdl9zcGxpdCAlPiUgCiAgIyBXZSBzZWUgaW4gdGhlIGluZGl2aWR1YWwgZm9sZHMsIHRoYXQgZWFjaCBpcyA4MCUgb2YgdGhlIG9yaWdpbmFsIGluaXRpYWxfc3BsaXQoKS4gU28gaW4gdGhlICJ0cmFpbiIgY29sdW1uLCBOID0gNTY5IGlzIDgwJSBvZiB0aGUgNzEyIHRyYWluaW5nIHRvdGFsLCBhbmQgaW4gdGhlICJ2YWxpZGF0ZSIgY29sdW1uLCBOID0gMTQzIGlzIDgwJSBvZiB0aGUgMTc5ICJ0ZXN0aW5nIiAodmFsaWRhdGlvbikgc2V0LgogIG11dGF0ZSh0cmFpbmluZ194ID0gbWFwKHNwbGl0cywgfnRyYWluaW5nKC54KSksCiAgICAgICAgICMgSXNvbGF0ZSB0aGUgIlN1cnZpdmVkIiBvdXRjb21lLgogICAgICAgICB0cmFpbmluZ195ID0gbWFwKHNwbGl0cywgfnRyYWluaW5nKC54KVssIDFdKSwKICAgICAgICAgIyBJc29sYXRlIHRoZSByb3cgbnVtYmVyIGNvbHVtbi4KICAgICAgICAgdHJhaW5pbmdfeF9yb3dzX2RmID0gbWFwKHNwbGl0cywgfnRyYWluaW5nKC54KVssIG5jb2wodHJhaW5pbmdfZGF0YSldKSwKICAgICAgICAgdHJhaW5pbmdfeF9yb3dzID0gbWFwKHRyYWluaW5nX3hfcm93c19kZiwgfnB1bGwoLngpKSwKICAgICAgICAgdmFsaWRhdGluZ194ID0gbWFwKHNwbGl0cywgfnRlc3RpbmcoLngpKSwKICAgICAgICAgdmFsaWRhdGluZ194X3Jvd3NfZGYgPSBtYXAoc3BsaXRzLCB+dGVzdGluZygueClbLCBuY29sKHZhbGlkYXRpbmdfZGF0YSldKSwKICAgICAgICAgdmFsaWRhdGluZ194X3Jvd3MgPSBtYXAodmFsaWRhdGluZ194X3Jvd3NfZGYsIH5wdWxsKC54KSkpCgojIE5PVEU6IFRoaXMgc3RlcCBtaWdodCBub3QgYmUgYWN0dWFsbHkgbmVjZXNzYXJ5LCBidXQgaXQgd2lsbCBhZGQgYSBuYW1lIHRvIGVhY2ggdHJhaW5feF9yb3dzIG9ic2VydmF0aW9uIHdoaWNoIGlzIGEgbGl0dGxlIGhlbHBmdWwuCm5hbWVzKGN2X2RhdGEkdHJhaW5pbmdfeF9yb3dzKSA8LSBjdl9kYXRhJGlkCm5hbWVzKGN2X2RhdGEkdmFsaWRhdGluZ194X3Jvd3MpIDwtIGN2X2RhdGEkaWQKCiAgICAgICAgICN0cmFpbl94X3Jvd3NfdGJsX2RmID0gYXNfdGliYmxlKG5hbWVzKHRyYWluX3hfcm93cywgaWQpKSkKICAjbXV0YXRlKHRyYWluX3hfcm93bnVtID0gdHJhaW5feFssXSkKICAjbXV0YXRlKHRyYWluID0gbWFwKHRyYWluX3gsIH5tb2RlbC5tYXRyaXgoU3Vydml2ZWR+Li0xLCBkYXRhID0gLngpKSwKICAgICAgICAgI3Rlc3QgPSBtYXAodHJhaW5feSwgfnB1bGwoLngpKSkKCiNnbGltcHNlKGN2X2RhdGEpCmBgYAoKCmBgYHtyfQoKY3ZfdHVuZSA8LSBjdl9kYXRhICU+JSAKICBjcm9zc2luZyhtdHJ5ID0gYygyLCA0LCA4LCAxMCwgMTIsIDE2KSkKCmBgYAoKCmBgYHtyfQoKY3ZfbW9kZWxzX3JmIDwtIGN2X3R1bmUgJT4lIAogIG11dGF0ZShtb2RlbCA9IG1hcDIodHJhaW5pbmdfeCwgbXRyeSwgfnJhbmdlcihmb3JtdWxhID0gU3Vydml2ZWR+LiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICNkZXBlbmRlbnQudmFyaWFibGUubmFtZSA9ICJTdXJ2aXZlZCIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjeCA9IC4sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjeSA9IHRyYWluX3gkU3Vydml2ZWQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBkYXRhID0gLngsIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbXRyeSA9IC55LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbnVtLnRyZWVzID0gMTAwLCBzZWVkID0gOCkpKQoKCiMjIyMjIyMKCiMgVEhJUyBXT1JLUyEhISEhCgpiYXNpY19sYXNzb19tb2RlbCA8LSBnbG1uZXQodHJhaW5feCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYWluX3ksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbHBoYSA9IDEsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmYW1pbHkgPSAiYmlub21pYWwiKQoKY3ZfbGFtYmRhcyA8LSBiYXNpY19sYXNzb19tb2RlbCRsYW1iZGEKCiMgVGhpcyB1c2VzIHRoZSBjdl9yZWYgZGYgY3JlYXRlZCBieSBjcm9zc1ZhbFZlY3Rvcml6ZXIuCm1vZGVsc19sYXNzbyA8LSBjdl9yZWYgJT4lIAogIG11dGF0ZShtb2RlbCA9IG1hcCh0cmFpbl9yb3dzLCB+Z2xtbmV0KHggPSB0cmFpbl94Wy54LCBdLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHkgPSB0cmFpbl95Wy54XSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbHBoYSA9IDEsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZmFtaWx5ID0gImJpbm9taWFsIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBsYW1iZGEgPSBjdl9sYW1iZGFzKSkpCgojIyMjIyMjIyMKCiMgVEhJUyBXT1JLUyEhISEhCmN2X3JlZl9yZiA8LSBjdl9yZWYgJT4lIAogIGNyb3NzaW5nKG10cnkgPSBjKDIsIDQsIDgsIDEwLCAxMiwgMTYpKQoKIyBUaGlzIHVzZXMgdGhlIGN2X3JlZiBkZiBjcmVhdGVkIGJ5IGNyb3NzVmFsVmVjdG9yaXplci4KY3ZfbW9kZWxzX3JmIDwtIGN2X3JlZl9yZiAlPiUgCiAgbXV0YXRlKG1vZGVsID0gbWFwMih0cmFpbl9yb3dzLCBtdHJ5LCB+cmFuZ2VyKHggPSB0cmFpbl94Wy54LCBdLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB5ID0gdHJhaW5feVsueF0sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG10cnkgPSAueSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbnVtLnRyZWVzID0gMTAwLCAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2VlZCA9IDgpKSkKCiMjIyMjIyMjIwoKCiMgVEhJUyBGSU5BTExZIFdPUktTISEhISEKY3ZfbW9kZWxzX3JmMiA8LSBjdl90dW5lICU+JSAKICBtdXRhdGUobW9kZWwgPSBtYXAyKHRyYWluaW5nX3hfcm93cywgCiAgICAgICAgICAgICAgICAgICAgICBtdHJ5LCAKICAgICAgICAgICAgICAgICAgICAgIH5yYW5nZXIoeCA9IHRyYWluX3hbLngsIF0sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHkgPSB0cmFpbl95Wy54XSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbXRyeSA9IC55LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBudW0udHJlZXMgPSAxMDAsIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZWVkID0gOCkpKQoKYGBgCgpgYGB7cn0KCmN2X3ByZXBfcmYgPC0gY3ZfbW9kZWxzX3JmICU+JSAKICBtdXRhdGUodmFsaWRhdGVfYWN0dWFsID0gbWFwKHZhbGlkYXRpbmdfeCwgfi54JFN1cnZpdmVkID09IDEpLAogICAgICAgICB2YWxpZGF0ZV9wcmVkaWN0ZWQgPSBtYXAyKC54ID0gbW9kZWwsIC55ID0gdmFsaWRhdGluZ194LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIH5wcmVkaWN0KC54LCAueSwgdHlwZSA9ICJyZXNwb25zZSIpJHByZWRpY3Rpb25zID49IC41KSkKCmN2X3ByZXBfcmYyIDwtIGN2X21vZGVsc19yZjIgJT4lIAogIG11dGF0ZSh2YWxpZGF0ZV9hY3R1YWwgPSBtYXAodmFsaWRhdGluZ194LCB+LngkU3Vydml2ZWQgPT0gMSksCiAgICAgICAgIHZhbGlkYXRlX3ByZWRpY3RlZCA9IG1hcDIobW9kZWwsIHZhbGlkYXRpbmdfeF9yb3dzLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIH5wcmVkaWN0KG9iamVjdCA9IC54LCAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIE5vdGU6IE1ha2Ugc3VyZSB0byB1c2UgdHJhaW5feAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMgaGVyZSBiZWNhdXNlIGl0IGFjdHVhbGx5IGNvbnRhaW5zCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyBhbGwgdGhlIG9ic2VydmF0aW9ucywgYW5kIHRoaXMKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIHdpbGwgbWFrZSBzdXJlIHdoZW4gdGhleSBhcmUKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIHN1YnNldHRlZCBieSB2YWxpZGF0aW5nX3hfcm93cywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIHRoZXkgYXJlIGFsbCBhY3R1YWxseSBwcmVzZW50LgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGRhdGEgPSB0cmFpbl94Wy55LCBdLCAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0eXBlID0gInJlc3BvbnNlIikkcHJlZGljdGlvbnMgPj0gLjUpKQoKY3ZfcHJlcF9yZiA8LSBjdl9tb2RlbHNfcmYyICU+JSAKICBtdXRhdGUodmFsaWRhdGVfYWN0dWFsID0gbWFwKHZhbGlkYXRpbmdfeCwgfi54JFN1cnZpdmVkID09IDEpLAogICAgICAgICB2YWxpZGF0ZV9wcmVkaWN0ZWQgPSBtYXAyKC54ID0gbW9kZWwsIC55ID0gdmFsaWRhdGluZ194LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIH5wcmVkaWN0KC54LCAueSwgdHlwZSA9ICJyZXNwb25zZSIpJHByZWRpY3Rpb25zID49IC41KSkKCmBgYAoKYGBge3J9CgojIE5PVEU6IFBlciB0aGUgb2ZmaWNpYWwgS2FnZ2xlIHdlYnNpdGUgaGVyZSwgdGhlIG1ldHJpYyB0byB1c2UgZm9yIHRoaXMgY29tcGV0aXRpb24gaXMgQWNjdXJhY3k6CiMgIk1ldHJpYzogWW91ciBzY29yZSBpcyB0aGUgcGVyY2VudGFnZSBvZiBwYXNzZW5nZXJzIHlvdSBjb3JyZWN0bHkgcHJlZGljdC4gVGhpcyBpcyBrbm93biBhcyBhY2N1cmFjeS4iCgojIGh0dHBzOi8vd3d3LmthZ2dsZS5jb20vY29tcGV0aXRpb25zL3RpdGFuaWMvb3ZlcnZpZXcvZXZhbHVhdGlvbgoKY3ZfcGVyZl9hY2N1cmFjeSA8LSBjdl9wcmVwX3JmMiAlPiUgCiAgbXV0YXRlKGFjY3VyYWN5ID0gbWFwMl9kYmwoLnggPSB2YWxpZGF0ZV9hY3R1YWwsIC55ID0gdmFsaWRhdGVfcHJlZGljdGVkLAogICAgICAgICAgICAgICAgICAgICAgICAgICB+YWNjdXJhY3koYWN0dWFsID0gLngsIHByZWRpY3RlZCA9IC55KSkpCgpjdl9wZXJmX2FjY3VyYWN5ICU+JSAKICBncm91cF9ieShtdHJ5KSAlPiUgCiAgc3VtbWFyaXNlKG1lYW5fYWNjdXJhY3kgPSBtZWFuKGFjY3VyYWN5KSkKCmBgYAoKCmBgYHtyfQoKIyBGaW5hbCBtb2RlbCBidWlsZAoKcmZfbW9kZWwgPC0gcmFuZ2VyKGZvcm11bGEgPSBTdXJ2aXZlZH4uLAogICAgICAgICAgICAgICAgICAgZGF0YSA9IHRyYWluX21vZCwKICAgICAgICAgICAgICAgICAgIG10cnkgPSA4LAogICAgICAgICAgICAgICAgICAgbnVtLnRyZWVzID0gMTAwLAogICAgICAgICAgICAgICAgICAgc2VlZCA9IDgpCgpgYGAKCgpgYGB7ciBzYXZlX3JmX3Jlc3VsdHN9CgpzYXZlUkRTKHJmX21vZGVsLCAnLi4vZGF0YS9yZl9tb2RlbC5yZHMnKQoKYGBgCgoK</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiQnVpbGQ6IExBU1NPIE1vZGVsIC0gTmV3IFZlcnNpb24gRmViLiAyMDIzIgpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sKLS0tCgpgYGB7ciBsaWJzfQoKbGlicmFyeSh0aWR5dmVyc2UpCmxpYnJhcnkodGljdG9jKQoKbGlicmFyeShNYXRyaXgpCmxpYnJhcnkoZ2xtbmV0KQpsaWJyYXJ5KHJzYW1wbGUpCgpgYGAKCgpgYGB7ciBkYXRhfQp0cmFpbl9maW5hbCA8LSByZWFkUkRTKCcuLi9kYXRhL3RyYWluX2ZpbmFsLnJkcycpCmBgYAoKYGBge3J9CgojIHhnYm9vc3QgdGVzdAoKdHJhaW5fbW9kIDwtIHRyYWluX2ZpbmFsICU+JSAKICBtdXRhdGUoU3Vydml2ZWQgPSBpZl9lbHNlKFN1cnZpdmVkID09ICd5ZXMnLCAxLCAwLCAwKSkKCnRyYWluX21vZF9tYXRyaXggPC0gdHJhaW5fbW9kICU+JSAKICBzZWxlY3QoLVBhc3NlbmdlcklkKSAlPiUgCiAgbW9kZWwubWF0cml4KFN1cnZpdmVkfi4tMSwgZGF0YSA9IC4pCgpkdHJhaW4gPC0geGdiLkRNYXRyaXgoc2NhbGUodHJhaW5fbW9kX21hdHJpeCksIGxhYmVsID0gYXMubnVtZXJpYyh0cmFpbl9tb2QkU3Vydml2ZWQpIC0gMSwgbnRocmVhZCA9IDIpCgpwYXJhbSA8LSBsaXN0KGJvb3N0ZXIgPSAiZ2JsaW5lYXIiLCBvYmplY3RpdmUgPSAicmVnOmxvZ2lzdGljIiwgZXZhbF9tZXRyaWMgPSAiYXVjIiwKbGFtYmRhID0gMC4wMDAzLCBhbHBoYSA9IDAuMDAwMywgbnRocmVhZCA9IDIpCgpic3QgPC0geGdiLmN2KHBhcmFtLCBkdHJhaW4sIG5mb2xkID0gNSwgbnJvdW5kcyA9IDEwMCwgZXRhID0gMC44LApjYWxsYmFja3MgPSBsaXN0KGNiLmdibGluZWFyLmhpc3RvcnkoKSkpCiMgY29lZmZpY2llbnRzIGluIHRoZSBDViBmb2xkICMzCm1hdHBsb3QoeGdiLmdibGluZWFyLmhpc3RvcnkoYnN0KVtbM11dLCB0eXBlID0gJ2wnKQojIyMjIE11bHRpY2xhc3MgY2xhc3NpZmljYXRpb246CiMKZHRyYWluIDwtIHhnYi5ETWF0cml4KHNjYWxlKHgpLCBsYWJlbCA9IGFzLm51bWVyaWMoaXJpcyRTcGVjaWVzKSAtIDEsIG50aHJlYWQgPSAyKQoKYGBgCgoKYGBge3J9CgojIE5PVEU6IElOIEZFQi4gMjAyMywgSSBGT1VORCBJIEhBRCBUTyBDSEFOR0UgVEhJUyBUTyAwLzEgT1VUQ09NRVMsIE9USEVSV0lTRSBJCiMgS0VQVCBHRVRUSU5HIFRIRSBGT0xMT1dJTkcgRVJST1IgTUVTU0FHRTogIkNhdXNlZCBieSBlcnJvciBpbiBgcmFuZ2VyKClgOiEKIyBFcnJvcjogVW5zdXBwb3J0ZWQgdHlwZSBvZiBkZXBlbmRlbnQgdmFyaWFibGUuIgoKdHJhaW5fbW9kIDwtIHRyYWluX2ZpbmFsICU+JSAKICBtdXRhdGUoU3Vydml2ZWQgPSBpZl9lbHNlKFN1cnZpdmVkID09ICd5ZXMnLCAxLCAwLCAwKSkKCnRyYWluX3ggPC0gdHJhaW5fbW9kICU+JSAKICBzZWxlY3QoLVBhc3NlbmdlcklkKSAlPiUgCiAgbW9kZWwubWF0cml4KFN1cnZpdmVkfi4tMSwgZGF0YSA9IC4pCgp0cmFpbl94X3hnYiA8LSB4Z2IuRE1hdHJpeCh0cmFpbl94LCBsYWJlbCA9IFN1cnZpdmVkLCBudGhyZWFkID0gMikKCnRyYWluX3kgPC0gdHJhaW5fbW9kJFN1cnZpdmVkCgpgYGAKCgpgYGB7cn0KCnRyYWluX3NwbGl0IDwtIGluaXRpYWxfc3BsaXQodHJhaW5fbW9kLCBwcm9wID0gLjgwKQoKdHJhaW5pbmdfZGF0YSA8LSB0cmFpbmluZyh0cmFpbl9zcGxpdCkKdGVzdGluZ19kYXRhIDwtIHRlc3RpbmcodHJhaW5fc3BsaXQpCgpgYGAKCgpgYGB7cn0KCmN2X3NwbGl0IDwtIHZmb2xkX2N2KHRyYWluaW5nX2RhdGEsIHYgPSA1KQoKI2dsaW1wc2UoY3Zfc3BsaXQpCmBgYAoKYGBge3J9Cgpjdl9kYXRhIDwtIGN2X3NwbGl0ICU+JSAKICBtdXRhdGUodHJhaW4gPSBtYXAoc3BsaXRzLCB+dHJhaW5pbmcoLngpKSwKICAgICAgICAgdmFsaWRhdGUgPSBtYXAoc3BsaXRzLCB+dGVzdGluZygueCkpKQoKI2dsaW1wc2UoY3ZfZGF0YSkKYGBgCgoKYGBge3J9CgojIFdlIGJ1aWxkIGEgYmFzaWMgbW9kZWwgbW9zdGx5IGp1c3QgdG8gZ2V0IGEgbGlzdCBvZiBsYW1iZGEgdmFsdWVzLgpiYXNpY19sYXNzb19tb2RlbCA8LSBnbG1uZXQodHJhaW5feCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRyYWluX3ksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIGxhc3NvCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbHBoYSA9IDEsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIGNsYXNzaWZpY2F0aW9uCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmYW1pbHkgPSAnYmlub21pYWwnKQoKbGFtYmRhcyA8LSBiYXNpY19sYXNzb19tb2RlbCRsYW1iZGEKCmBgYAoKCmBgYHtyfQoKY3ZfdHVuZSA8LSBjdl9kYXRhICU+JSAKICBjcm9zc2luZyhsYW1iZGEgPSBsYW1iZGFzKQoKYGBgCgoKYGBge3J9CgpzZXQuc2VlZCgxKQoKY3ZfbW9kZWxzX3JmIDwtIGN2X3R1bmUgJT4lIAogIG11dGF0ZShtb2RlbCA9IG1hcDIodHJhaW4sIGxhbWJkYSwgfmdsbW5ldChmb3JtdWxhID0gU3Vydml2ZWR+LiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGRhdGEgPSAueCwgbGFtYmRhID0gLnksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbHBoYSA9IDEsIGZhbWlseSA9ICdiaW5vbWlhbCcpKSkKCmBgYAoKCgoKCgoKCgoKCgo=</div>
 
 
 
@@ -2100,7 +1941,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeSourceEmbed("build-random_forest.Rmd");
+  window.initializeSourceEmbed("build-lasso_new.Rmd");
   window.initializeCodeFolding("show" === "show");
 });
 </script>

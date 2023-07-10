@@ -17,105 +17,135 @@ library(rsample)
 
 ```{r data}
 train_final <- readRDS('../data/train_final.rds')
+
+train_mod <- train_final %>% 
+  # Removing PassengerId because it's the unique identifier key. Also removing
+  # Name, Ticket, and Cabin because they are too unique, so when you create
+  # dummified model matrices you will end up with unequal column counts between
+  # your TRAIN and VALIDATE.
+  select(-PassengerId, -Name, -Ticket, -Cabin) %>% 
+  # We need the row number to extract the correct records for each corresponding
+  # cross-validation set later on.
+  mutate(Survived = if_else(Survived == 'yes', 1, 0, 0), 
+         row_num = 1:n())
 ```
 
 
-<!-- SKIP THIS PORTION - LEADS TO SIGNIFICANT PERFORMANCE DROP -->
+```{r}
+# NOTE: Should probably rename this - we calling it TRAIN but it' really what
+# wiill be BOTH Train and Validate below...
 
-```{r train_prep, eval=FALSE}
+train_x <- train_mod %>% 
+  model.matrix(Survived~.-1, data = .)
 
-train_prep <- train_final %>%
-  # We remove Survived (the Y variable) temporarily, and the following variables
-  # because on their own they are not good features for model training (we have
-  # already generated other feats from them): Name, Ticket, Cabin.
-  select(-Survived, -Name, -Ticket, -Cabin) %>% 
-  # Interaction variables added here
-  mutate(pclass_x_numfam = Pclass*num_family_members,
-         age_x_fare = Age*Fare)
+train_y <- train_mod$Survived
+
+train_df <- train_mod 
+```
+
+```{r}
+
+crossValVectorizer <- function(data, k) {
   
-
-# Now with only X vars needed for model, convert to model matrix (so that
-# categoricals get dummified).
-# The -1 is to get rid of the Y-intercept.
-train_mat <- model.matrix(~.-1, train_prep)
+  PassengerId <- unique(data$PassengerId)
+  
+  n <- length(PassengerId)
+  folds <- sample(rep(1:k, length.out = n))
+  
+  idx <- seq_len(n)
+  fold_idx <- split(idx, folds)
+  
+  fold <- function(test) {
+    list(
+      train_rows = which(data$PassengerId %in% PassengerId[setdiff(idx, test)]),
+      validate_rows = which(data$PassengerId %in% PassengerId[test])
+    )
+  }
+  cols <- purrr::transpose(purrr::map(fold_idx, fold))
+  cols[['fold']] <- 1:k
+  tbl_df(cols)
+  
+}
 
 ```
 
-```{r remove_feats_less_than_one_perc, eval=FALSE}
+```{r}
 
-# Remove logical/binary feats with less > 99% uniformity in responses.
+set.seed(1)
 
-train_dummy_df <- as_tibble(train_mat)
-
-train_feat_summ <- train_dummy_df %>% 
-  # Remove these vars consideration since they are numeric vars or are
-  # categorical vars with > 2 responses.
-  select(-Age, -Fare, -Parch, -SibSp, -num_family_members, -total_cabins, -pclass_x_numfam, -age_x_fare, -married_femaleYes, -married_femaleNotApplicable, -adultYes, -adultUNKNOWN) %>% 
-  gather(feat, val) %>% 
-  group_by(feat) %>% 
-  mutate(feat_n = n()) %>% 
-  ungroup() %>% 
-  group_by(feat, val) %>% 
-  mutate(feat_val_n = n()) %>% 
-  ungroup() %>% 
-  unique() %>% 
-  mutate(coverage = feat_val_n/feat_n)
-
-uniform_feat <- train_feat_summ %>% 
-  #Identify those with > 99% uniformity
-  filter(coverage > .99) %>% 
-  select(feat) %>% 
-  unique() %>% 
-  pull()
-
-train_select <- train_dummy_df %>% 
-  select(-one_of(uniform_feat)) %>% 
-  mutate(PassengerId = as.integer(PassengerId))
-
-train_y <- train_final %>% 
-  select(PassengerId, Survived)
-
-train_mod <- train_y %>% 
-  left_join(train_select, by = 'PassengerId')
+cv_ref <- crossValVectorizer(train_final, k = 3) %>% 
+  mutate(
+    train_actual = map(train_rows, ~train_y[.x]),
+    validate_actual = map(validate_rows, ~train_y[.x]))
 
 ```
 
 
 
+Above is taken directly from old version explore-model_selection.
 
+
+##########
 
 
 
 
 ```{r}
 
-train_mod <- train_final
-
-```
-
-
-```{r}
-
+# rsample::initial_split() partitions the TRAIN set into a random split - 80%
+# for TRAINING, 20% for TESTING (or more accurately, VALIDATING). Note: This is
+# a hard split across the entire original TRAIN set - so the TRAINING records
+# will ONLY be used for TRAINING, the TESTING will be ONLY for VALIDATING.
 train_split <- initial_split(train_mod, prop = .80)
 
-training_data <- training(train_split)
-testing_data <- testing(train_split)
+# training() and testing() are used to extract the resulting data.
 
+# NOTE: Only traing_data is actually used below. The testing_data df is just here for
+# illustrative purposes of how the rsample functions work on a single df.
+
+# Note: nrow(training_data) == 712 (or 80% of the original TRAIN, with N = 891)
+training_data <- training(train_split)
+
+# Note: nrow(testing_data) == 179 (or 20% of the original TRAIN, with N = 179)
+validating_data <- testing(train_split)
+
+validate_x <- validating_data %>% 
+  model.matrix(Survived~.-1, data = .)
 ```
 
 
 ```{r}
 
+# rsample::vfold_cv() then sets up cross-validation (with 5 folds below), by
+# taking 80% of both the training and testing (aka: validation set).
 cv_split <- vfold_cv(training_data, v = 5)
 
 #glimpse(cv_split)
 ```
 
+
 ```{r}
 
 cv_data <- cv_split %>% 
-  mutate(train = map(splits, ~training(.x)),
-         validate = map(splits, ~testing(.x)))
+  # We see in the individual folds, that each is 80% of the original initial_split(). So in the "train" column, N = 569 is 80% of the 712 training total, and in the "validate" column, N = 143 is 80% of the 179 "testing" (validation) set.
+  mutate(training_x = map(splits, ~training(.x)),
+         # Isolate the "Survived" outcome.
+         training_y = map(splits, ~training(.x)[, 1]),
+         # Isolate the row number column.
+         training_x_rows_df = map(splits, ~training(.x)[, ncol(training_data)]),
+         training_x_rows = map(training_x_rows_df, ~pull(.x)),
+         validating_x = map(splits, ~testing(.x)),
+         validating_x_rows_df = map(splits, ~testing(.x)[, ncol(validating_data)]),
+         validating_x_rows = map(validating_x_rows_df, ~pull(.x)))
+
+# NOTE: This step might not be actually necessary, but it will add a name to each train_x_rows observation which is a little helpful.
+names(cv_data$training_x_rows) <- cv_data$id
+names(cv_data$validating_x_rows) <- cv_data$id
+
+         #train_x_rows_tbl_df = as_tibble(names(train_x_rows, id)))
+  #mutate(train_x_rownum = train_x[,])
+  #mutate(train = map(train_x, ~model.matrix(Survived~.-1, data = .x)),
+         #test = map(train_y, ~pull(.x)))
 
 #glimpse(cv_data)
 ```
@@ -132,30 +162,104 @@ cv_tune <- cv_data %>%
 ```{r}
 
 cv_models_rf <- cv_tune %>% 
-  mutate(model = map2(train, mtry, ~ranger(formula = Survived~.,
-                                           data = .x, mtry = .y,
+  mutate(model = map2(training_x, mtry, ~ranger(formula = Survived~.,
+                                           #dependent.variable.name = "Survived",
+                                           #x = .,
+                                           #y = train_x$Survived,
+                                           data = .x, 
+                                           mtry = .y,
                                            num.trees = 100, seed = 8)))
+
+
+#######
+
+# THIS WORKS!!!!!
+
+basic_lasso_model <- glmnet(train_x,
+                            train_y,
+                            alpha = 1,
+                            family = "binomial")
+
+cv_lambdas <- basic_lasso_model$lambda
+
+# This uses the cv_ref df created by crossValVectorizer.
+models_lasso <- cv_ref %>% 
+  mutate(model = map(train_rows, ~glmnet(x = train_x[.x, ],
+                                         y = train_y[.x],
+                                         alpha = 1,
+                                         family = "binomial",
+                                         lambda = cv_lambdas)))
+
+#########
+
+# THIS WORKS!!!!!
+cv_ref_rf <- cv_ref %>% 
+  crossing(mtry = c(2, 4, 8, 10, 12, 16))
+
+# This uses the cv_ref df created by crossValVectorizer.
+cv_models_rf <- cv_ref_rf %>% 
+  mutate(model = map2(train_rows, mtry, ~ranger(x = train_x[.x, ],
+                                                y = train_y[.x],
+                                                mtry = .y,
+                                                num.trees = 100, 
+                                                seed = 8)))
+
+#########
+
+
+# THIS FINALLY WORKS!!!!!
+cv_models_rf2 <- cv_tune %>% 
+  mutate(model = map2(training_x_rows, 
+                      mtry, 
+                      ~ranger(x = train_x[.x, ],
+                              y = train_y[.x],
+                              mtry = .y,
+                              num.trees = 100, 
+                              seed = 8)))
 
 ```
 
 ```{r}
 
 cv_prep_rf <- cv_models_rf %>% 
-  mutate(validate_actual = map(validate, ~.x$Survived == "yes"),
-         validate_predicted = map2(.x = model, .y = validate,
-                                   ~predict(.x, .y, type = "response")$predictions == "yes"))
+  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
+         validate_predicted = map2(.x = model, .y = validating_x,
+                                   ~predict(.x, .y, type = "response")$predictions >= .5))
+
+cv_prep_rf2 <- cv_models_rf2 %>% 
+  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
+         validate_predicted = map2(model, validating_x_rows,
+                                   ~predict(object = .x, 
+                                            # Note: Make sure to use train_x
+                                            # here because it actually contains
+                                            # all the observations, and this
+                                            # will make sure when they are
+                                            # subsetted by validating_x_rows,
+                                            # they are all actually present.
+                                            data = train_x[.y, ], 
+                                            type = "response")$predictions >= .5))
+
+cv_prep_rf <- cv_models_rf2 %>% 
+  mutate(validate_actual = map(validating_x, ~.x$Survived == 1),
+         validate_predicted = map2(.x = model, .y = validating_x,
+                                   ~predict(.x, .y, type = "response")$predictions >= .5))
 
 ```
 
 ```{r}
 
-cv_perf_recall <- cv_prep_rf %>% 
-  mutate(recall = map2_dbl(.x = validate_actual, .y = validate_predicted,
-                           ~recall(actual = .x, predicted = .y)))
+# NOTE: Per the official Kaggle website here, the metric to use for this competition is Accuracy:
+# "Metric: Your score is the percentage of passengers you correctly predict. This is known as accuracy."
 
-cv_perf_recall %>% 
+# https://www.kaggle.com/competitions/titanic/overview/evaluation
+
+cv_perf_accuracy <- cv_prep_rf2 %>% 
+  mutate(accuracy = map2_dbl(.x = validate_actual, .y = validate_predicted,
+                           ~accuracy(actual = .x, predicted = .y)))
+
+cv_perf_accuracy %>% 
   group_by(mtry) %>% 
-  summarise(mean_recall = mean(recall))
+  summarise(mean_accuracy = mean(accuracy))
 
 ```
 
@@ -165,7 +269,7 @@ cv_perf_recall %>%
 # Final model build
 
 rf_model <- ranger(formula = Survived~.,
-                   data = train_final,
+                   data = train_mod,
                    mtry = 8,
                    num.trees = 100,
                    seed = 8)

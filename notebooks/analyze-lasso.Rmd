@@ -15,12 +15,16 @@ library(broom)
 library(Matrix)
 library(glmnet)
 
+library(DT)
+
 ```
 
 ```{r data}
 
 test_final <- readRDS('../data/test_final.rds')
 cvglmnet_results <- readRDS('../data/cvglmnet_results.rds')
+
+lasso_best_fit <- readRDS('../data/lasso_best_fit.rds')
 
 ```
 
@@ -47,67 +51,70 @@ test_x_prep <- test_final %>%
 # categoricals get dummified).
 test_x <- model.matrix(~.-1, test_x_prep)
 
-test_y <- test_final %>% 
-  select(Survived) %>% 
-  pull()
+```
+
+
+```{r}
+
+best_fit_coeffs <- lasso_best_fit$beta@Dimnames[[1]]
+
+test_x_df <- as_tibble(test_x) %>% 
+  select(one_of(best_fit_coeffs))
+
+test_x <- model.matrix(~.-1, test_x_df)
 
 ```
 
-```{r remove_feats_less_than_one_perc}
 
-# Remove logical/binary feats with less > 99% uniformity in responses.
-
-train_x_dummy_df <- as_tibble(train_x)
-
-train_x_feat_summ <- train_x_dummy_df %>% 
-  # Remove these vars consideration since they are numeric vars or are
-  # categorical vars with > 2 responses.
-  select(-Age, -Fare, -Parch, -SibSp, -num_family_members, -total_cabins, -pclass_x_numfam, -age_x_fare, -married_femaleYes, -married_femaleNotApplicable, -adultYes, -adultUNKNOWN) %>% 
-  gather(feat, val) %>% 
-  group_by(feat) %>% 
-  mutate(feat_n = n()) %>% 
-  ungroup() %>% 
-  group_by(feat, val) %>% 
-  mutate(feat_val_n = n()) %>% 
-  ungroup() %>% 
-  unique() %>% 
-  mutate(coverage = feat_val_n/feat_n)
-
-uniform_feat <- train_x_feat_summ %>% 
-  #Identify those with > 99% uniformity
-  filter(coverage > .99) %>% 
-  select(feat) %>% 
-  unique() %>% 
-  pull()
-
-train_x_mod <- train_x_dummy_df %>% 
-  select(-one_of(uniform_feat))
-
-# Convert back to matrix.
-train_x <- model.matrix(~.-1, train_x_mod)
-
-```
-
-```{r best_fit}
-
-
-
-best_lambda <- cvglmnet_results$lambda.min
-
-best_fit <- glmnet(train_x,
-                   train_y,
-                   # Logistic model
-                   family = "binomial",
-                   # Use alpha = 1 for lasso.
-                   alpha = 1,
-                   lambda = best_lambda)
-
-```
 
 ```{r predictions}
 
-train_final$preds <- predict(cvglmnet_results, s = "lambda.min", newx = train_x, type = 'response')
+predict(cvglmnet_results, s = "lambda.min", newx = test_x, type = 'response')
+
+test_x_prep$preds <- predict(cvglmnet_results, s = "lambda.min", newx = test_x, type = 'response')
 ```
+
+
+```{r}
+
+lasso_best_fit$beta
+
+```
+
+
+```{r}
+
+best_coeff_names <- as_tibble(lasso_best_fit$beta@Dimnames[[1]]) %>% 
+  rename(feat = value) %>% 
+  filter(feat != 'SibSp')
+
+best_coeff_betas <- as_tibble(lasso_best_fit$beta@x) %>% 
+  rename(beta = value)
+
+bind_cols(best_coeff_names, best_coeff_betas) %>% 
+  arrange(desc(beta)) %>% 
+  datatable()
+  
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r pred_labels}
 
@@ -116,19 +123,9 @@ train_final <- train_final %>%
 
 ```
 
-```{r compare_final}
 
-compare_final <- train_final %>% 
-  mutate(match = if_else(Survived == pred_label, TRUE, FALSE, FALSE))
 
-# Overall accuracy
-paste0(round((sum(compare_final$match)/nrow(compare_final))*100, 0), '%')
 
-```
-
-```{r}
-coef(best_fit)
-```
 
 
 

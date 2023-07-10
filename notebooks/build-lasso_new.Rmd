@@ -1,0 +1,140 @@
+---
+title: "Build: LASSO Model - New Version Feb. 2023"
+output: html_notebook
+---
+
+```{r libs}
+
+library(tidyverse)
+library(tictoc)
+
+library(Matrix)
+library(glmnet)
+library(rsample)
+
+```
+
+
+```{r data}
+train_final <- readRDS('../data/train_final.rds')
+```
+
+```{r}
+
+# xgboost test
+
+train_mod <- train_final %>% 
+  mutate(Survived = if_else(Survived == 'yes', 1, 0, 0))
+
+train_mod_matrix <- train_mod %>% 
+  select(-PassengerId) %>% 
+  model.matrix(Survived~.-1, data = .)
+
+dtrain <- xgb.DMatrix(scale(train_mod_matrix), label = as.numeric(train_mod$Survived) - 1, nthread = 2)
+
+param <- list(booster = "gblinear", objective = "reg:logistic", eval_metric = "auc",
+lambda = 0.0003, alpha = 0.0003, nthread = 2)
+
+bst <- xgb.cv(param, dtrain, nfold = 5, nrounds = 100, eta = 0.8,
+callbacks = list(cb.gblinear.history()))
+# coefficients in the CV fold #3
+matplot(xgb.gblinear.history(bst)[[3]], type = 'l')
+#### Multiclass classification:
+#
+dtrain <- xgb.DMatrix(scale(x), label = as.numeric(iris$Species) - 1, nthread = 2)
+
+```
+
+
+```{r}
+
+# NOTE: IN FEB. 2023, I FOUND I HAD TO CHANGE THIS TO 0/1 OUTCOMES, OTHERWISE I
+# KEPT GETTING THE FOLLOWING ERROR MESSAGE: "Caused by error in `ranger()`:!
+# Error: Unsupported type of dependent variable."
+
+train_mod <- train_final %>% 
+  mutate(Survived = if_else(Survived == 'yes', 1, 0, 0))
+
+train_x <- train_mod %>% 
+  select(-PassengerId) %>% 
+  model.matrix(Survived~.-1, data = .)
+
+train_x_xgb <- xgb.DMatrix(train_x, label = Survived, nthread = 2)
+
+train_y <- train_mod$Survived
+
+```
+
+
+```{r}
+
+train_split <- initial_split(train_mod, prop = .80)
+
+training_data <- training(train_split)
+testing_data <- testing(train_split)
+
+```
+
+
+```{r}
+
+cv_split <- vfold_cv(training_data, v = 5)
+
+#glimpse(cv_split)
+```
+
+```{r}
+
+cv_data <- cv_split %>% 
+  mutate(train = map(splits, ~training(.x)),
+         validate = map(splits, ~testing(.x)))
+
+#glimpse(cv_data)
+```
+
+
+```{r}
+
+# We build a basic model mostly just to get a list of lambda values.
+basic_lasso_model <- glmnet(train_x,
+                            train_y,
+                            # lasso
+                            alpha = 1,
+                            # classification
+                            family = 'binomial')
+
+lambdas <- basic_lasso_model$lambda
+
+```
+
+
+```{r}
+
+cv_tune <- cv_data %>% 
+  crossing(lambda = lambdas)
+
+```
+
+
+```{r}
+
+set.seed(1)
+
+cv_models_rf <- cv_tune %>% 
+  mutate(model = map2(train, lambda, ~glmnet(formula = Survived~.,
+                                           data = .x, lambda = .y,
+                                           alpha = 1, family = 'binomial')))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

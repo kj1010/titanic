@@ -18,7 +18,23 @@ train_final <- readRDS('../data/train_final.rds')
 
 ```{r train_prep}
 
+# NOTE: There are 2 passengers in TRAIN whose Embarked variable was left blank
+# (appear as ""). This will cause issues with the predictions on TEST, because
+# there are no such passengers in TEST. Therefore, since we cannot predict on
+# this value in a dummified matrix in TEST anyway, and it will lead to anchoring
+# issues (the TRAIN will anchor to the "" value, and the TEST will anchor to the
+# "C" value), we will simply remove these.
+#train_x_prep %>% count(Embarked)
+# A tibble: 4 x 2
+#  Embarked     n
+#  <chr>    <int>
+#1 ""           2
+#2 C          168
+#3 Q           77
+#4 S          644
+
 train_x_prep <- train_final %>%
+  filter(Embarked != "") %>% 
   # We remove the unique passenger ID from the X matrix, along with the Survived
   # label (will be used for y), and also the following variables because on
   # their own they are not good features for model training (we have already
@@ -34,6 +50,7 @@ train_x_prep <- train_final %>%
 train_x <- model.matrix(~.-1, train_x_prep)
 
 train_y <- train_final %>% 
+  filter(Embarked != "") %>%
   select(Survived) %>% 
   pull()
 
@@ -75,6 +92,43 @@ train_x <- model.matrix(~.-1, train_x_mod)
 ```
 
 
+> FIRST, we need to confirm there are no columns appearing in a model matrix of TRAIN that do NOT appear in TEST.
+
+```{r}
+
+test_final <- readRDS('../data/test_final.rds')
+
+test_x_prep <- test_final %>%
+  # We remove the unique passenger ID from the X matrix, along with the Survived
+  # label (will be used for y), and also the following variables because on
+  # their own they are not good features for model training (we have already
+  # generated other feats from them): Name, Ticket, Cabin.
+  select(-PassengerId, -Name, -Ticket, -Cabin) %>% 
+  # Interaction variables added here
+  mutate(pclass_x_numfam = Pclass*num_family_members,
+         age_x_fare = Age*Fare)
+
+# Now with only X vars needed for model, convert to model matrix (so that
+# categoricals get dummified).
+test_x <- model.matrix(~.-1, test_x_prep)
+
+```
+
+
+
+```{r}
+
+train_x_cols <- tibble(col = colnames(train_x))
+
+test_x_cols <- tibble(col = colnames(test_x))
+
+train_x_cols %>% anti_join(test_x_cols, by = 'col')
+
+test_x_cols %>% anti_join(train_x_cols, by = 'col')
+
+```
+
+
 ```{r model_tuning}
 
 set.seed(1)
@@ -92,9 +146,27 @@ cvglmnet_results <- cv.glmnet(train_x,
 
 ```
 
+
+```{r best_fit}
+
+# Identify lambda for the best performing model
+best_lambda <- cvglmnet_results$lambda.min
+
+# Build the best-performing model using lambda value above.
+best_fit <- glmnet(train_x,
+                   train_y,
+                   # Logistic model
+                   family = "binomial",
+                   # Use alpha = 1 for lasso.
+                   alpha = 1,
+                   lambda = best_lambda)
+
+```
+
 ```{r save_cvglmnet_results}
 
 saveRDS(cvglmnet_results, '../data/cvglmnet_results.rds')
+saveRDS(best_fit, '../data/lasso_best_fit.rds')
 
 ```
 
